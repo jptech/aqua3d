@@ -280,8 +280,7 @@ function buildClosets(g) {
   wireShelf(g, 10.4, 23.45, 11.75, 24.4, 5.6);
   // bedroom 2 closet bump
   wireShelf(g, 15.8, 40.55, 19.9, 41.45, 5.6);
-  // stacked washer/dryer in foyer closet (units at the east face, per the plan;
-  // the space behind them at the west is dead/plumbing depth)
+  // stacked washer/dryer in foyer closet, backed against the solid mass at x 3.3
   g.add(box(3.3, 0, 34.5, 5.6, 3.1, 36.8, M.white));
   g.add(box(3.3, 3.1, 34.5, 5.6, 6.2, 36.8, M.white));
   const wDoor = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 20), M.frame);
@@ -504,9 +503,12 @@ export function buildApartment(scene) {
   wall(interior, { x0: X.wi, z0: Z.ba1S0, x1: SUITE.chaseX0, z1: Z.ba1S1 });
   // hall closet south wall
   wall(interior, { x0: SUITE.chaseX1, z0: 25.65, x1: X.div1, z1: SUITE.divEnd });
-  // W/D closet: east wall with bifold spans the full foyer side, no gaps;
-  // the closet is ~5.2 ft deep (bifold plane x 5.7-6.05)
+  // W/D closet: east wall with bifold spans the full foyer side, no gaps
+  // (bifold plane x 5.7-6.05)
   wall(interior, { x0: 5.7, z0: Z.ba1S1, x1: 6.05, z1: Z.b2S0 }, [{ a0: 33.6, a1: 38.6 }]);
+  // solid mass behind the W/D (dead space / column / wall area) — the closet's
+  // back wall sits at the back of the units
+  wall(interior, { x0: X.wi, z0: Z.ba1S1, x1: 3.3, z1: Z.b2S0 });
   // countertop column: intersects the peninsula's east end and runs to the wall
   wall(interior, { x0: 24.6, z0: 13.85, x1: X.ei, z1: 15.7 });
   // kitchen south wall

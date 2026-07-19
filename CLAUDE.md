@@ -56,9 +56,10 @@ approximate, especially the refined one's lower third).
   narrowing in front of the countertop column (which extends to the east wall); the
   narrow run stops just short of the east windows (small gap, counter ends ≈x 27.2); then
   **full window gap**, then the chase column against the kitchen/bath wall.
-- Laundry closet spans the foyer's full west side, no gaps — and it is deep: the
-  bifold plane sits at x≈5.7–6.05 with the W/D stack at its east face, so the foyer's
-  usable width starts there.
+- Laundry closet spans the foyer's full west side, no gaps. The bifold plane sits at
+  x≈5.7–6.05, so the foyer's usable width starts there; the closet itself is only as
+  deep as the W/D stack — everything west of the units' backs (x≲3.3) is solid
+  dead space / column / wall mass, not closet interior.
 - Bedroom 2: door beside the apartment entry (west wall, hinged south), corner column at
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
