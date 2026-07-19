@@ -95,7 +95,7 @@ grid.visible = false;
 scene.add(grid);
 
 // ---------- interactions ----------
-const STORAGE = 'aqua3d.layout.v4';
+const STORAGE = 'aqua3d.layout.v5';
 let saveTimer = null;
 const interactions = new Interactions({
   scene, camera, dom: renderer.domElement, controls,
@@ -116,7 +116,7 @@ const VIEWS = {
   master: { pos: [10.6, 5.8, 2.0], tgt: [3.0, 2.8, 12.5] },
   kitchen: { pos: [13.2, 5.4, 18.3], tgt: [26, 3.2, 17.8] },
   bed2: { pos: [14.2, 5.8, 31.4], tgt: [24, 2.8, 38] },
-  balcony: { pos: [13.0, 5.8, -3.0], tgt: [30, 2.5, 14] },
+  balcony: { pos: [20.0, 5.8, -2.2], tgt: [30, 2.5, 12] },
 };
 let camAnim = null;
 function goView(name) {
