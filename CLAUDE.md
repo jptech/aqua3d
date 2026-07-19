@@ -40,7 +40,7 @@ approximate, especially the refined one's lower third).
 - **Walk mode needs floor continuity**: every door/opening in a registered wall needs a
   matching `th-*` threshold rect in `ROOMS`, or you can't walk through it.
 - **Floor rects must not overlap** (z-fighting) and walls sit on y=0 over them.
-- Saved layouts live in localStorage `aqua3d.layout.v4` (see `STORAGE` in main.js).
+- Saved layouts live in localStorage `aqua3d.layout.v5` (see `STORAGE` in main.js).
   Bump the version only if saved furniture would now sit inside new walls.
 - Cabinet-door "seams" are hairline boxes (~0.05 ft wide). A fat seam renders as a big
   black panel — size them thin.
@@ -53,9 +53,18 @@ approximate, especially the refined one's lower third).
   closet's south end: master entry door, walk-in back wall, and hall-closet bifold are
   all in it.
 - Kitchen: sliding glass door is on the **north** wall; peninsula counter is contiguous,
-  narrowing in front of the countertop column (which extends to the east wall); then
+  narrowing in front of the countertop column (which extends to the east wall); the
+  narrow run stops just short of the east windows (small gap, counter ends ≈x 27.2); then
   **full window gap**, then the chase column against the kitchen/bath wall.
-- Laundry closet spans the foyer's full west side, no gaps.
+- Laundry closet spans the foyer's full west side, no gaps. The bifold plane sits at
+  x≈5.7–6.05, so the foyer's usable width starts there; the closet itself is only as
+  deep as the W/D stack — everything west of the units' backs (x≲3.3) is solid
+  dead space / column / wall mass, not closet interior.
 - Bedroom 2: door beside the apartment entry (west wall, hinged south), corner column at
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
+- Bath 2: the east face is a **solid wall** (no glazing) — the tub sits against it.
+- Balcony: the plan's 17'11" × 23'2" are the curved slab's **overall bounding box** —
+  it starts at the sliding door (x≈15.5), bulges ~4 ft past the north face and ~5 ft
+  past the east face, and rejoins the facade at the chase column (z≈19). It does
+  **not** front the master bedroom windows or run south past the kitchen window gap.
