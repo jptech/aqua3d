@@ -1,5 +1,6 @@
 // Interactive measuring tape: click two points (walls, floors, furniture),
-// get the distance in feet-inches. Shift snaps to 1/2 ft on the floor plane.
+// get the distance in feet-inches. Shift snaps to 1/2 ft on the floor plane;
+// Ctrl/Cmd locks the second point to a 90° axis from the first.
 import * as THREE from 'three';
 import { feetLabel } from './plan.js';
 
@@ -66,6 +67,13 @@ export class MeasureTool {
     if (e.shiftKey) {
       p.x = Math.round(p.x * 2) / 2;
       p.z = Math.round(p.z * 2) / 2;
+    }
+    if ((e.ctrlKey || e.metaKey) && this.a && !this.fixed) {
+      // lock the segment to the dominant axis (pure x, z, or vertical run)
+      const dx = Math.abs(p.x - this.a.x), dz = Math.abs(p.z - this.a.z), dy = Math.abs(p.y - this.a.y);
+      if (dy > dx && dy > dz) { p.x = this.a.x; p.z = this.a.z; }
+      else if (dx >= dz) { p.z = this.a.z; p.y = this.a.y; }
+      else { p.x = this.a.x; p.y = this.a.y; }
     }
     return p;
   }
