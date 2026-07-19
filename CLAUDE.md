@@ -74,5 +74,5 @@ approximate, especially the refined one's lower third).
 The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces the owner
 actually owns, at real measured dimensions — don't resize them, and prefer them over
 generic equivalents in the default layout: 64"×16" TV console with 65" TV, 47"×28"
-wooden dining table, 60"×29" and 28"×23" sit-stand desks, 23"×12" five-shelf bookcase
+wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
 (62" tall), Full XL bed, Queen bed.

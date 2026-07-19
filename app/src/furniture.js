@@ -134,13 +134,13 @@ export const CATALOG = [
     },
   },
   {
-    id: 'my-desk-s', name: 'My sit-stand desk 28×23', cat: 'My Furniture', w: 2.33, d: 1.92, h: 3.3, surface: true,
+    id: 'my-desk-s', name: 'My sit-stand desk 48×23', cat: 'My Furniture', w: 4.0, d: 1.92, h: 3.3, surface: true,
     build: () => {
       const g = new THREE.Group(), M2 = m();
-      g.add(B(2.33, 0.14, 1.92, M2.oak, 0, 2.35, 0));
+      g.add(B(4.0, 0.14, 1.92, M2.oak, 0, 2.35, 0));
       for (const sx of [-1, 1]) {
-        g.add(B(0.22, 2.35, 0.22, M2.metal, sx * 0.9, 0, 0));
-        g.add(B(0.26, 0.1, 1.6, M2.metal, sx * 0.9, 0, 0));
+        g.add(B(0.22, 2.35, 0.22, M2.metal, sx * 1.65, 0, 0));
+        g.add(B(0.26, 0.1, 1.6, M2.metal, sx * 1.65, 0, 0));
       }
       g.add(B(0.95, 0.06, 0.7, M2.metal, 0, 2.49, 0.1));
       const lid = B(0.95, 0.68, 0.05, M2.screen, 0, 2.55, -0.28);
