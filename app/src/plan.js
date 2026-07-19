@@ -1,7 +1,7 @@
 // Floorplan model for Aqua (Chicago) 2BD/2BA ~1080 sqft unit.
 // Units: feet. Origin at exterior NW corner. +x = east, +z = south, +y = up.
 // Derived from floorplan.png: Master 11'4" x 15'11", Living/Dining 15'7" x 13'7",
-// Bedroom 2 14'3" x 9'0", balcony 17'11" (north) x 23'2" (east).
+// Bedroom 2 14'3" x 9'0", balcony 17'11" x 23'2" (overall bounding box).
 
 export const H = 9.0;          // ceiling height
 export const DOOR_H = 6.8;     // door/opening header height
@@ -39,23 +39,28 @@ export const SUITE = {
   divEnd: 26.0,                    // divider ends at the hall closet's south wall
 };
 
+// The plan's 17'11" x 23'2" are the balcony's OVERALL bounding box: 17'11" from
+// the west end (at the SGD) to the curve's east extremity (~5 ft past the east
+// facade), 23'2" from the curve's north extremity to where the parapet rejoins
+// the facade at the chase column. Neither is measured from the unit's walls.
 export const BALCONY = {
-  nStartX: X.e1 - 17.92,       // 17'11" along the north edge
-  eEndZ: 23.17,                // 23'2" along the east edge
+  nStartX: 15.5,               // west end, at the sliding glass door
+  eEndZ: 19.0,                 // parapet rejoins the east facade at the chase column
   // outer curved edge control points (Catmull-Rom), Aqua's signature wave
   outer: [
-    [X.e1 - 17.92, 0.0],
-    [12.6, -3.9],
-    [16.5, -5.5],
-    [21.5, -5.7],
-    [26.5, -4.9],
-    [30.6, -2.9],
-    [32.4, 0.6],
-    [32.9, 5.0],
-    [32.5, 10.5],
-    [31.8, 16.0],
-    [30.4, 20.4],
-    [X.e1, 23.17],
+    [15.5, 0.0],
+    [17.2, -1.7],
+    [19.8, -3.1],
+    [23.0, -4.0],
+    [26.5, -4.2],
+    [29.6, -3.4],
+    [31.9, -1.4],
+    [33.1, 1.5],
+    [33.4, 5.0],
+    [32.9, 8.8],
+    [31.7, 12.6],
+    [30.1, 16.2],
+    [X.e1, 19.0],
   ],
 };
 

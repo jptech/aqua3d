@@ -116,7 +116,7 @@ const VIEWS = {
   master: { pos: [10.6, 5.8, 2.0], tgt: [3.0, 2.8, 12.5] },
   kitchen: { pos: [13.2, 5.4, 18.3], tgt: [26, 3.2, 17.8] },
   bed2: { pos: [14.2, 5.8, 31.4], tgt: [24, 2.8, 38] },
-  balcony: { pos: [13.0, 5.8, -3.0], tgt: [30, 2.5, 14] },
+  balcony: { pos: [20.0, 5.8, -2.2], tgt: [30, 2.5, 12] },
 };
 let camAnim = null;
 function goView(name) {
@@ -293,7 +293,7 @@ const SAMPLE = [
   { id: 'outchair', x: 30.4, z: 3.6, r: -2.0 },
   { id: 'outchair', x: 29.9, z: 8.6, r: -1.1 },
   { id: 'bistro', x: 30.6, z: 6.1, r: 0 },
-  { id: 'outchair', x: 17.5, z: -2.7, r: Math.PI },
+  { id: 'outchair', x: 19.3, z: -1.5, r: Math.PI },
 ];
 
 // load saved layout or sample
