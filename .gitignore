@@ -1,0 +1,10 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+
+# local tool state
+.claude/settings.local.json
+__pycache__/
+node_modules/

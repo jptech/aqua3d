@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aqua 2BD/2BA — 3D Layout Planner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; font-family: "Segoe UI", system-ui, sans-serif; }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; }
+
+  .panel {
+    position: fixed; z-index: 10; color: #e8ecf0;
+    background: rgba(18, 22, 28, 0.82); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.09); border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  }
+
+  #topbar {
+    top: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; padding: 8px 16px;
+    white-space: nowrap; max-width: calc(100vw - 24px); overflow-x: auto;
+  }
+  #topbar .title { font-weight: 600; font-size: 14px; letter-spacing: 0.2px; }
+  #topbar .title span { color: #7fc4e8; }
+  .btn-row { display: flex; gap: 5px; }
+  .vbtn, .tbtn {
+    background: rgba(255,255,255,0.08); color: #dfe6ec; border: 1px solid rgba(255,255,255,0.1);
+    padding: 5px 10px; border-radius: 7px; font-size: 12px; cursor: pointer;
+  }
+  .vbtn:hover, .tbtn:hover { background: rgba(255,255,255,0.16); }
+  .tbtn.on { background: #2a6d94; border-color: #4da3cd; }
+  .sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); }
+
+  #sidebar {
+    top: 70px; left: 12px; bottom: 52px; width: 216px;
+    display: flex; flex-direction: column; padding: 12px 0 8px;
+  }
+  #sidebar h2 { font-size: 13px; font-weight: 600; padding: 0 14px 8px; color: #9fc8de; }
+  #catalog { overflow-y: auto; flex: 1; padding: 0 10px; }
+  #catalog::-webkit-scrollbar { width: 8px; }
+  #catalog::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+  .cat-head {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: #8aa2b2; margin: 10px 4px 5px;
+  }
+  .cat-items { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .item-btn {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.08);
+    color: #e4eaef; border-radius: 8px; padding: 7px 6px; font-size: 11.5px;
+    cursor: pointer; text-align: left; line-height: 1.25;
+  }
+  .item-btn:hover { background: rgba(127,196,232,0.22); border-color: rgba(127,196,232,0.5); }
+  .item-btn span { display: block; color: #93a7b4; font-size: 10px; }
+  #sidebar .foot { display: flex; gap: 6px; padding: 10px 12px 4px; }
+  #sidebar .foot button {
+    flex: 1; padding: 7px 0; border-radius: 8px; font-size: 12px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.08); color: #e4eaef;
+  }
+  #b-sample:hover { background: rgba(110,190,130,0.25); }
+  #b-clear:hover { background: rgba(230,110,110,0.25); }
+
+  #selected {
+    display: none; bottom: 52px; left: 50%; transform: translateX(-50%);
+    align-items: center; gap: 8px; padding: 8px 14px;
+  }
+  #sel-name { font-size: 13px; font-weight: 600; margin-right: 6px; }
+  #selected button {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.12);
+    color: #e4eaef; border-radius: 7px; padding: 6px 11px; font-size: 12px; cursor: pointer;
+  }
+  #selected button:hover { background: rgba(255,255,255,0.2); }
+  #s-del:hover { background: rgba(230,90,90,0.4); }
+
+  #hints {
+    bottom: 12px; left: 50%; transform: translateX(-50%);
+    padding: 6px 16px; font-size: 11.5px; color: #9db0bd; border-radius: 8px;
+  }
+  #hints b { color: #cfdde6; font-weight: 600; }
+
+  .dim-label, .item-label {
+    position: fixed; z-index: 20; transform: translate(-50%, -50%);
+    background: rgba(20, 24, 30, 0.88); color: #ffb45e; border: 1px solid rgba(255,180,94,0.4);
+    font: 600 11px "Segoe UI", system-ui, sans-serif; padding: 2px 7px; border-radius: 6px;
+    pointer-events: none; display: none; white-space: nowrap;
+  }
+  .item-label { color: #8fd3f2; border-color: rgba(127,196,232,0.45); }
+  .measure-label {
+    position: fixed; z-index: 20; transform: translate(-50%, -50%);
+    background: rgba(20, 24, 30, 0.88); color: #5ce0a8; border: 1px solid rgba(92,224,168,0.45);
+    font: 600 12px "Segoe UI", system-ui, sans-serif; padding: 2px 8px; border-radius: 6px;
+    pointer-events: none; display: none; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="topbar" class="panel">
+  <div class="title">AQUA <span>·</span> 2 Bed / 2 Bath <span>·</span> ~1,080 ft²</div>
+  <div class="sep"></div>
+  <div class="btn-row">
+    <button class="vbtn" data-view="overview">Overview</button>
+    <button class="vbtn" data-view="top">Top</button>
+    <button class="vbtn" data-view="living">Living</button>
+    <button class="vbtn" data-view="kitchen">Kitchen</button>
+    <button class="vbtn" data-view="master">Master</button>
+    <button class="vbtn" data-view="bed2">Bed 2</button>
+    <button class="vbtn" data-view="balcony">Balcony</button>
+  </div>
+  <div class="sep"></div>
+  <div class="btn-row">
+    <button class="tbtn" id="t-xray">X-ray</button>
+    <button class="tbtn" id="t-ceiling">Ceiling</button>
+    <button class="tbtn on" id="t-labels">Labels</button>
+    <button class="tbtn" id="t-grid">Grid</button>
+  </div>
+  <div class="sep"></div>
+  <div class="btn-row">
+    <button class="tbtn" id="t-measure" title="Click two points to measure">📏 Measure</button>
+    <button class="tbtn" id="t-walk" title="First-person walkthrough (V)">🚶 Walk</button>
+  </div>
+</div>
+
+<div id="sidebar" class="panel">
+  <h2>Furniture</h2>
+  <div id="catalog"></div>
+  <div class="foot">
+    <button id="b-sample">Sample layout</button>
+    <button id="b-clear">Clear</button>
+  </div>
+</div>
+
+<div id="selected" class="panel">
+  <span id="sel-name"></span>
+  <button id="s-rotl" title="Rotate left (Q)">⟲ 15°</button>
+  <button id="s-rotr" title="Rotate right (E)">⟳ 15°</button>
+  <button id="s-dup" title="Duplicate (D)">Duplicate</button>
+  <button id="s-del" title="Delete">Delete</button>
+</div>
+
+<div id="hints" class="panel">
+  <b>Drag</b> furniture to move · <b>Q / E</b> rotate · <b>Shift</b> snap ½ ft · <b>D</b> duplicate · <b>Del</b> remove · orbit with mouse, scroll to zoom
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
