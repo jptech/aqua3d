@@ -250,8 +250,49 @@ $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList
 $('#t-measure').onclick = () => setMeasure(!measureOn);
 $('#t-walk').onclick = () => setWalk(!walk.on);
 
-$('#b-sample').onclick = () => interactions.load(SAMPLE);
+$('#b-sample').onclick = () => {
+  if (confirm('Replace the current layout with the default layout?')) interactions.load(SAMPLE);
+};
 $('#b-clear').onclick = () => { if (confirm('Remove all furniture?')) interactions.clear(); };
+
+// ---------- export / import ----------
+$('#b-export').onclick = () => {
+  const data = {
+    app: 'aqua3d', version: 4,
+    exported: new Date().toISOString(),
+    items: interactions.serialize(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `aqua3d-layout-${data.exported.slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+const importInput = $('#import-file');
+$('#b-import').onclick = () => importInput.click();
+importInput.onchange = async () => {
+  const file = importInput.files[0];
+  importInput.value = '';
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const items = Array.isArray(data) ? data : data.items;   // raw array or export wrapper
+    if (!Array.isArray(items)) throw new Error('no furniture list found');
+    const known = new Set(CATALOG.map((c) => c.id));
+    const clean = items
+      .filter((e) => e && known.has(e.id) && Number.isFinite(+e.x) && Number.isFinite(+e.z))
+      .map((e) => ({ id: e.id, x: +e.x, z: +e.z, r: Number.isFinite(+e.r) ? +e.r : 0 }));
+    if (!clean.length) throw new Error('no valid furniture entries');
+    interactions.load(clean);
+    if (clean.length < items.length) {
+      alert(`Imported ${clean.length} of ${items.length} items — unknown or invalid entries were skipped.`);
+    }
+  } catch (err) {
+    alert(`Could not import layout: ${err.message}`);
+  }
+};
 
 const selPanel = $('#selected');
 interactions.onSelect = (it) => {
@@ -263,37 +304,50 @@ $('#s-rotr').onclick = () => interactions.rotateSelected(-15);
 $('#s-dup').onclick = () => interactions.duplicateSelected();
 $('#s-del').onclick = () => interactions.removeSelected();
 
-// ---------- sample layout ----------
+// ---------- default layout ----------
+// Keeps the living area open: TV on the west divider wall, sofa facing it, a round
+// dining table by the NE windows, and a clear path to the balcony door (x 17.6-18.6).
 const HPI = Math.PI / 2;
 const SAMPLE = [
-  // living / dining
-  { id: 'tv', x: 13.3, z: 7.3, r: HPI },
-  { id: 'sofa', x: 20.2, z: 7.5, r: -HPI },
-  { id: 'rug810', x: 17.2, z: 7.3, r: HPI },
-  { id: 'coffee', x: 17.4, z: 7.3, r: HPI },
-  { id: 'armchair', x: 17.0, z: 12.3, r: -2.4 },
-  { id: 'lamp', x: 23.3, z: 10.9, r: 0 },
-  { id: 'plant', x: 26.8, z: 6.2, r: 0 },
-  { id: 'dining', x: 21.5, z: 3.1, r: 0 },
-  { id: 'chair', x: 20.3, z: 1.7, r: 0 }, { id: 'chair', x: 22.7, z: 1.7, r: 0 },
-  { id: 'chair', x: 20.3, z: 4.6, r: Math.PI }, { id: 'chair', x: 22.7, z: 4.6, r: Math.PI },
-  { id: 'stool', x: 17.6, z: 13.3, r: 0 }, { id: 'stool', x: 20.0, z: 13.3, r: 0 }, { id: 'stool', x: 22.4, z: 13.3, r: 0 },
-  // master
-  { id: 'king', x: 4.15, z: 8.5, r: HPI },
-  { id: 'nightstand', x: 1.5, z: 4.3, r: HPI }, { id: 'nightstand', x: 1.5, z: 12.7, r: HPI },
-  { id: 'dresser', x: 6.6, z: 15.3, r: Math.PI },
-  { id: 'plant', x: 10.8, z: 1.8, r: 0 },
-  // bedroom 2
-  { id: 'queen', x: 20.5, z: 34.6, r: 0 },
-  { id: 'nightstand', x: 17.0, z: 31.7, r: 0 }, { id: 'nightstand', x: 24.0, z: 31.7, r: 0 },
-  { id: 'desk', x: 26.3, z: 37.3, r: HPI },
-  { id: 'taskchair', x: 24.1, z: 36.9, r: HPI },
-  { id: 'chest', x: 26.9, z: 33.7, r: HPI },
-  // balcony
-  { id: 'outchair', x: 30.4, z: 3.6, r: -2.0 },
-  { id: 'outchair', x: 29.9, z: 8.6, r: -1.1 },
-  { id: 'bistro', x: 30.6, z: 6.1, r: 0 },
-  { id: 'outchair', x: 17.5, z: -2.7, r: Math.PI },
+  // living (NE corner x>24.7, z<4.8 is a structural column — keep clear)
+  { id: 'my-tv', x: 13.35, z: 8.8, r: HPI },
+  { id: 'my-shelf', x: 13.1, z: 4.9, r: HPI },
+  { id: 'sofa', x: 20.9, z: 8.8, r: -HPI },
+  { id: 'rug810', x: 17.3, z: 8.8, r: HPI },
+  { id: 'coffee', x: 17.2, z: 8.8, r: HPI },
+  { id: 'lamp', x: 13.4, z: 12.8, r: 0 },
+  { id: 'plant', x: 26.9, z: 6.0, r: 0 },
+  // dining — owned 47×28 table by the north windows, two chairs per long side
+  { id: 'my-dining', x: 21.6, z: 2.9, r: 0 },
+  { id: 'chair', x: 20.6, z: 1.5, r: 0 },
+  { id: 'chair', x: 22.6, z: 1.5, r: 0 },
+  { id: 'chair', x: 20.6, z: 4.3, r: Math.PI },
+  { id: 'chair', x: 22.6, z: 4.3, r: Math.PI },
+  { id: 'stool', x: 19.8, z: 13.35, r: 0 },
+  { id: 'stool', x: 22.2, z: 13.35, r: 0 },
+  // master — owned queen
+  { id: 'my-queen', x: 4.2, z: 8.5, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 4.3, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 12.7, r: HPI },
+  { id: 'bench', x: 8.65, z: 8.5, r: HPI },
+  { id: 'dresser', x: 6.9, z: 15.4, r: Math.PI },
+  { id: 'plant', x: 10.5, z: 1.8, r: 0 },
+  // bedroom 2 — owned Full XL + sit-stand desk
+  { id: 'my-fullxl', x: 20.3, z: 34.4, r: 0 },
+  { id: 'nightstand', x: 16.85, z: 31.8, r: 0 },
+  { id: 'nightstand', x: 23.8, z: 31.8, r: 0 },
+  { id: 'rug58', x: 20.3, z: 35.6, r: 0 },
+  { id: 'my-desk-l', x: 26.5, z: 37.0, r: HPI },
+  { id: 'taskchair', x: 24.7, z: 37.0, r: HPI },
+  // entry
+  { id: 'console', x: 6.8, z: 39.05, r: Math.PI },
+  // balcony — bistro set on the east curve, lounger further south, sofa + planter north
+  { id: 'bistro', x: 30.7, z: 6.1, r: 0 },
+  { id: 'outchair', x: 30.5, z: 3.0, r: 0.2 },
+  { id: 'outchair', x: 30.5, z: 9.2, r: 2.9 },
+  { id: 'lounger', x: 30.2, z: 13.5, r: 0 },
+  { id: 'outsofa', x: 15.2, z: -1.9, r: Math.PI },
+  { id: 'planter', x: 21.5, z: -1.2, r: 0 },
 ];
 
 // load saved layout or sample

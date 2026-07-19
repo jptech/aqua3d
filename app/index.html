@@ -53,11 +53,13 @@
   }
   .item-btn:hover { background: rgba(127,196,232,0.22); border-color: rgba(127,196,232,0.5); }
   .item-btn span { display: block; color: #93a7b4; font-size: 10px; }
-  #sidebar .foot { display: flex; gap: 6px; padding: 10px 12px 4px; }
+  #sidebar .foot { display: flex; gap: 6px; padding: 8px 12px 0; }
+  #sidebar .foot:last-of-type { padding-bottom: 4px; }
   #sidebar .foot button {
     flex: 1; padding: 7px 0; border-radius: 8px; font-size: 12px; cursor: pointer;
     border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.08); color: #e4eaef;
   }
+  #b-export:hover, #b-import:hover { background: rgba(127,196,232,0.25); }
   #b-sample:hover { background: rgba(110,190,130,0.25); }
   #b-clear:hover { background: rgba(230,110,110,0.25); }
 
@@ -127,9 +129,14 @@
   <h2>Furniture</h2>
   <div id="catalog"></div>
   <div class="foot">
-    <button id="b-sample">Sample layout</button>
-    <button id="b-clear">Clear</button>
+    <button id="b-export" title="Download the current layout as a JSON file">Export</button>
+    <button id="b-import" title="Load a layout from an exported JSON file">Import</button>
   </div>
+  <div class="foot">
+    <button id="b-sample" title="Restore the default furnished layout">Reset default</button>
+    <button id="b-clear" title="Remove all furniture">Clear</button>
+  </div>
+  <input type="file" id="import-file" accept=".json,application/json" style="display:none">
 </div>
 
 <div id="selected" class="panel">

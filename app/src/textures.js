@@ -105,6 +105,42 @@ export function walnutTexture(repeatX = 1, repeatY = 1) {
   }, { repeatX, repeatY });
 }
 
+// placeholder abstract artwork — seeded so each catalog piece is distinct but stable
+export function artTexture(seed) {
+  return canvasTex(256, (ctx, S) => {
+    const r = rng(seed);
+    const palettes = [
+      ['#e8e0d0', '#2e4a5f', '#7fa8b8', '#d9c9a8', '#c76f4a'],
+      ['#ece4d8', '#b45a38', '#d9a08a', '#4a4038', '#8a9a94'],
+      ['#e4e2da', '#5f7a5a', '#a8b8a0', '#33413a', '#c9a86a'],
+      ['#efe9df', '#3a3f4a', '#9aa8b8', '#c2b49a', '#7a5a48'],
+    ];
+    const pal = palettes[Math.floor(r() * palettes.length)];
+    ctx.fillStyle = pal[0];
+    ctx.fillRect(0, 0, S, S);
+    const n = 4 + Math.floor(r() * 4);
+    for (let i = 0; i < n; i++) {
+      ctx.fillStyle = pal[1 + Math.floor(r() * (pal.length - 1))];
+      ctx.globalAlpha = 0.75 + r() * 0.25;
+      if (r() > 0.5) {
+        ctx.fillRect(r() * S * 0.7, r() * S * 0.7, S * (0.15 + r() * 0.5), S * (0.15 + r() * 0.5));
+      } else {
+        ctx.beginPath();
+        ctx.arc(S * (0.2 + r() * 0.6), S * (0.2 + r() * 0.6), S * (0.08 + r() * 0.22), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = pal[1 + Math.floor(r() * (pal.length - 1))];
+    ctx.lineWidth = 2 + r() * 5;
+    ctx.beginPath();
+    ctx.moveTo(0, S * (0.2 + r() * 0.6));
+    ctx.bezierCurveTo(S * 0.33, S * r(), S * 0.66, S * r(), S, S * (0.2 + r() * 0.6));
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+}
+
 export function skyTexture() {
   return canvasTex(512, (ctx, S) => {
     const g = ctx.createLinearGradient(0, 0, 0, S);

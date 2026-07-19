@@ -11,7 +11,7 @@ approximate, especially the refined one's lower third).
 
 - No build step, no node needed: `python -m http.server 8123 --directory Z:/aqua3d/app`,
   then open http://localhost:8123. `.claude/launch.json` defines this as `aqua3d` for
-  `preview_start`.
+  `preview_start` (plus `aqua3d-alt` on 8124 for when another session holds 8123).
 - Three.js v0.170 is vendored in `app/vendor/` (import map in `index.html` maps `three`).
 - Verify changes visually: reload the page, use the Top view button for plan-accuracy
   checks and the room view buttons for finish/fixture checks, then check the browser
@@ -59,3 +59,11 @@ approximate, especially the refined one's lower third).
 - Bedroom 2: door beside the apartment entry (west wall, hinged south), corner column at
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
+
+## Owned furniture
+
+The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces the owner
+actually owns, at real measured dimensions — don't resize them, and prefer them over
+generic equivalents in the default layout: 64"×16" TV console with 65" TV, 47"×28"
+wooden dining table, 60"×29" and 28"×23" sit-stand desks, 23"×12" five-shelf bookcase
+(62" tall), Full XL bed, Queen bed.
