@@ -53,7 +53,8 @@ approximate, especially the refined one's lower third).
   closet's south end: master entry door, walk-in back wall, and hall-closet bifold are
   all in it.
 - Kitchen: sliding glass door is on the **north** wall; peninsula counter is contiguous,
-  narrowing in front of the countertop column (which extends to the east wall); then
+  narrowing in front of the countertop column (which extends to the east wall); the
+  narrow run stops just short of the east windows (small gap, counter ends ≈x 27.2); then
   **full window gap**, then the chase column against the kitchen/bath wall.
 - Laundry closet spans the foyer's full west side, no gaps — and it is deep: the
   bifold plane sits at x≈5.7–6.05 with the W/D stack at its east face, so the foyer's

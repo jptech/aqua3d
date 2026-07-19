@@ -200,12 +200,12 @@ function buildKitchen(g) {
   g.add(arc);
   reg(px0 - 0.15, 14.13, px1, 16.62);   // base footprint; stools tuck under the bar overhang
 
-  // --- countertop narrows in front of the column (straight south edge) and runs
-  // straight to the window; full glass between here and the chase column
-  g.add(box(24.6, 0, 15.7, X.ei, 2.95, 16.45, M.maple));         // narrow strip base
-  g.add(box(24.6, 2.95, 15.62, X.ei + 0.05, 3.12, 16.62, M.granite));
+  // --- countertop narrows in front of the column (straight south edge) and stops
+  // just short of the east windows (small gap); full glass between here and the chase
+  g.add(box(24.6, 0, 15.7, 27.2, 2.95, 16.45, M.maple));         // narrow strip base
+  g.add(box(24.6, 2.95, 15.62, 27.25, 3.12, 16.62, M.granite));
   g.add(box(25.72, 0.35, 16.45, 25.77, 2.8, 16.47, M.frame));
-  reg(24.6, 15.62, X.ei, 16.62);
+  reg(24.6, 15.62, 27.25, 16.62);
 
   // --- south run: fridge, base + upper cabinets, range, microwave ---
   g.add(box(19.3, 0, 20.35, 25.5, 2.95, 22.25, M.maple));
