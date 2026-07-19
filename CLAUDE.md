@@ -59,6 +59,7 @@ approximate, especially the refined one's lower third).
 - Bedroom 2: door beside the apartment entry (west wall, hinged south), corner column at
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
+- Bath 2: the east face is a **solid wall** (no glazing) — the tub sits against it.
 - Balcony: the plan's 17'11" × 23'2" are the curved slab's **overall bounding box** —
   it starts at the sliding door (x≈15.5), bulges ~4 ft past the north face and ~5 ft
   past the east face, and rejoins the facade at the chase column (z≈19). It does

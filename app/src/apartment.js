@@ -266,7 +266,7 @@ function buildBaths(g) {
   vanity(g, { x0: 17.3, z0: 22.75, x1: 20.8, z1: 24.65, sinks: [[19.05, 23.6]], mirrorWall: 'n' });
   toilet(g, 22.15, 23.4, 0);                                                // tank north, faces south
   WALL_RECTS.push({ x0: 21.4, z0: 22.75, x1: 22.9, z1: 24.5 });
-  bathtub(g, 25.3, 23.7, 27.8, 28.7);                                       // tub along east glass
+  bathtub(g, 25.3, 23.7, 27.8, 28.7);                                       // tub against the east wall
 }
 
 function buildClosets(g) {
@@ -466,7 +466,7 @@ export function buildApartment(scene) {
   wall(sides.E, { x0: X.ei, z0: 13.85, x1: X.e1, z1: 15.7 }, [], M.plasterExt); // countertop column back
   glazing(sides.E, { x0: X.ei, z0: 15.7, x1: X.e1, z1: 19.4 }, { mullionEvery: 3 }); // behind return counter
   wall(sides.E, { x0: 26.2, z0: 19.4, x1: X.e1, z1: Z.ktS1 }, [], M.plaster); // chase, against kitchen-bath wall
-  glazing(sides.E, { x0: X.ei, z0: Z.ktS1, x1: X.e1, z1: Z.b2N0 });          // bath 2
+  wall(sides.E, { x0: X.ei, z0: Z.ktS1, x1: X.e1, z1: Z.b2N0 }, [], M.plasterExt); // bath 2: solid, no windows
   wall(sides.E, { x0: X.ei, z0: Z.b2N0, x1: X.e1, z1: 32.1 }, [], M.plasterExt); // band + bed2 corner column back
   glazing(sides.E, { x0: X.ei, z0: 32.1, x1: X.e1, z1: Z.b2S0 });            // bedroom 2
   wall(sides.E, { x0: X.ei, z0: Z.b2S0, x1: X.e1, z1: Z.b2S1 }, [], M.plasterExt);
