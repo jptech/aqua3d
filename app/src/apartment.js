@@ -316,11 +316,11 @@ function buildDoors(g) {
   // hinge south, swings into the bedroom
   doorFrame(g, { x0: 13.21, z0: 36.0, x1: 13.61, z1: 38.5 }, { a0: 36.0, a1: 38.5 });
   door(g, 2.5, [13.4, 38.42], Math.PI * 0.25);
-  // entry: double doors (opening x 7.6-10.6 in south wall z 39.7-40.25) — closed
+  // entry: single 3' door (opening x 7.6-10.6 in south wall z 39.7-40.25),
+  // hinged at the west jamb, swings into the foyer — drawn closed
   doorFrame(g, { x0: 7.6, z0: Z.b2S0, x1: 10.6, z1: Z.b2S1 }, { a0: 7.6, a1: 10.6 });
-  door(g, 1.5, [7.66, Z.b2S0 + 0.27], 0, M.entryDoor);
-  door(g, 1.5, [10.54, Z.b2S0 + 0.27], Math.PI, M.entryDoor);
-  reg(7.6, Z.b2S0, 10.6, Z.b2S1); // closed doors block movement
+  door(g, 2.94, [7.66, Z.b2S0 + 0.27], 0, M.entryDoor);
+  reg(7.6, Z.b2S0, 10.6, Z.b2S1); // closed door blocks movement
   // W/D bifold (opening z 33.6-38.6 in wall x 5.7-6.05)
   doorFrame(g, { x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 }, { a0: 33.6, a1: 38.6 });
   door(g, 2.45, [5.88, 33.65], HPI - 0.5);
