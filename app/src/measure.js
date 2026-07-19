@@ -9,6 +9,7 @@ export class MeasureTool {
     this.dom = dom;
     this.pickTargets = pickTargets;
     this.active = false;
+    this.planar = false;   // plan mode: measure on the floor plane only (walls are hidden)
     this.a = null;
     this.b = null;
     this.fixed = false;
@@ -55,7 +56,7 @@ export class MeasureTool {
     this.ray.setFromCamera(new THREE.Vector2(
       ((e.clientX - r.left) / r.width) * 2 - 1,
       -((e.clientY - r.top) / r.height) * 2 + 1), this.camera);
-    const hits = this.ray.intersectObjects(this.pickTargets, true)
+    const hits = this.planar ? [] : this.ray.intersectObjects(this.pickTargets, true)
       .filter((h) => h.object.visible && (h.object.material?.opacity ?? 1) > 0.15);
     let p = hits.length ? hits[0].point.clone() : null;
     if (!p) {

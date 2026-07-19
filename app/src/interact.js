@@ -47,6 +47,8 @@ export class Interactions {
     this.selected = null;
     this.dragging = false;
     this.enabled = true;   // false while measure/walk tools own the pointer
+    this.planMode = false; // 2D plan mode: items shown as flat labeled footprints
+    this._proxySeq = 0;    // staggers proxy heights so overlapping footprints don't z-fight
     this.ray = new THREE.Raycaster();
     this.floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.group = new THREE.Group();
@@ -93,6 +95,7 @@ export class Interactions {
     this.group.add(it);
     this.items.push(it);
     this.attachCollisionPad(it);
+    if (this.planMode) this.applyPlanMode(it);
     this.refreshCollisions();
     if (!silent) { this.select(it); this.onChange(); }
     return it;
@@ -108,6 +111,70 @@ export class Interactions {
     pad.raycast = () => {};   // not pickable
     it.add(pad);
     it.userData.pad = pad;
+  }
+
+  // ---------- 2D plan mode (flat labeled footprints instead of 3D models) ----------
+  setPlanMode(on) {
+    this.planMode = on;
+    for (const it of this.items) this.applyPlanMode(it);
+  }
+
+  applyPlanMode(it) {
+    if (this.planMode && !it.userData.planProxy) this.attachPlanProxy(it);
+    for (const c of it.children) {
+      if (c === it.userData.pad) continue;             // pad visibility owned by refreshCollisions
+      if (c === it.userData.planProxy) c.visible = this.planMode;
+      else c.visible = !this.planMode;
+    }
+    if (it.userData.planLabelHolder) it.userData.planLabelHolder.rotation.y = -it.rotation.y;
+  }
+
+  attachPlanProxy(it) {
+    const def = it.userData.def;
+    const { w, d } = def;
+    // rugs sit below solid footprints; solids get a tiny stagger against each other
+    const y = def.flat ? 0.005 : 0.03 + (this._proxySeq++ % 8) * 0.0008;
+    const proxy = new THREE.Group();
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ color: def.flat ? 0xf2efe6 : 0xfdfcf8 }));
+    fill.rotation.x = -Math.PI / 2;
+    fill.position.y = y;
+    fill.renderOrder = 4;
+    proxy.add(fill);
+    const hw = w / 2, hd = d / 2;
+    const outline = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-hw, y + 0.002, -hd), new THREE.Vector3(hw, y + 0.002, -hd),
+        new THREE.Vector3(hw, y + 0.002, hd), new THREE.Vector3(-hw, y + 0.002, hd)]),
+      new THREE.LineBasicMaterial({ color: 0x3a3f44 }));
+    outline.renderOrder = 4;
+    proxy.add(outline);
+    // name label in a holder that counter-rotates to stay screen-upright
+    const cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 64;
+    const ctx = cv.getContext('2d');
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(45,50,55,0.9)';
+    let px = 26;
+    ctx.font = `600 ${px}px system-ui, sans-serif`;
+    const tw = ctx.measureText(def.name).width;
+    if (tw > 244) { px = Math.max(13, Math.floor(px * 244 / tw)); ctx.font = `600 ${px}px system-ui, sans-serif`; }
+    ctx.fillText(def.name, 128, 40);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    const lw = Math.min(Math.max(Math.max(w, d) * 0.92, 1.4), 5);
+    const lm = new THREE.Mesh(new THREE.PlaneGeometry(lw, lw / 4),
+      new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+    lm.rotation.x = -Math.PI / 2;
+    lm.position.y = y + 0.004;
+    lm.renderOrder = 4;
+    const holder = new THREE.Group();
+    holder.add(lm);
+    proxy.add(holder);
+    proxy.traverse((o) => { o.raycast = () => {}; });  // picking keeps hitting the 3D meshes
+    it.add(proxy);
+    it.userData.planProxy = proxy;
+    it.userData.planLabelHolder = holder;
   }
 
   removeSelected() {
@@ -130,6 +197,8 @@ export class Interactions {
   rotateSelected(deg) {
     if (!this.selected) return;
     this.selected.rotation.y += deg * DEG;
+    const holder = this.selected.userData.planLabelHolder;
+    if (holder) holder.rotation.y = -this.selected.rotation.y;
     this.refreshCollisions();
     this.updateOverlays();
     this.onChange();

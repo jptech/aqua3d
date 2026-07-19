@@ -137,8 +137,16 @@ export function pointInPoly(x, z, pts) {
 }
 
 // ---- solid obstacle rectangles (for dimension rays + collision tinting) ----
-// Filled at build time by apartment.js; each entry {x0,z0,x1,z1}.
+// Filled at build time by apartment.js; each entry {x0,z0,x1,z1,kind} where
+// kind is 'wall' | 'glazing' | 'fixture' | 'door' (consumers that only need
+// obstacles read just the coords; the 2D sketch reads kind).
 export const WALL_RECTS = [];
+
+// ---- hinged-door registry (for the 2D sketch's door symbols) ----
+// Filled at build time by apartment.js; each entry
+// { w, hinge:[x,z], angle, closed, sweep, arc } — angles are world Y-rotations
+// (slab runs +x from hinge at 0); arc:false = bifold/french leaf, no swing arc.
+export const DOOR_ARCS = [];
 
 export function feetLabel(v) {
   const ft = Math.floor(v + 1e-6);

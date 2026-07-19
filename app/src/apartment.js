@@ -1,6 +1,6 @@
 // Builds the Aqua unit: walls, glazing, curved balcony, fixtures, doors.
 import * as THREE from 'three';
-import { H, DOOR_H, X, Z, SUITE, BALCONY, ROOMS, WALL_RECTS } from './plan.js';
+import { H, DOOR_H, X, Z, SUITE, BALCONY, ROOMS, WALL_RECTS, DOOR_ARCS } from './plan.js';
 import * as TEX from './textures.js';
 
 const M = {};   // materials, filled in initMaterials()
@@ -41,7 +41,7 @@ function box(x0, y0, z0, x1, y1, z1, mat) {
   return m;
 }
 
-function reg(x0, z0, x1, z1) { WALL_RECTS.push({ x0, z0, x1, z1 }); }
+function reg(x0, z0, x1, z1, kind = 'wall') { WALL_RECTS.push({ x0, z0, x1, z1, kind }); }
 
 // Solid wall with optional openings along its long axis.
 // r = {x0,z0,x1,z1}; openings: [{a0,a1,y0,y1}] in plan coords along the long axis.
@@ -92,12 +92,15 @@ function glazing(parent, r, { mullionEvery = 4.4, register = true } = {}) {
     : box(tc0, 0.3, a0, tc1, H - 0.35, a1, M.glass);
   glass.castShadow = false;
   parent.add(glass);
-  if (register) { if (alongX) reg(a0, t0, a1, t1); else reg(t0, a0, t1, a1); }
+  if (register) { if (alongX) reg(a0, t0, a1, t1, 'glazing'); else reg(t0, a0, t1, a1, 'glazing'); }
 }
 
 // Hinged door: slab shown ajar. hinge = [x,z]; angle = world Y-rotation
-// (at angle 0 the slab runs +x from the hinge).
-function door(parent, width, hinge, angle, mat = M.doorSlab) {
+// (at angle 0 the slab runs +x from the hinge). plan = { closed, sweep, arc }
+// feeds DOOR_ARCS for the 2D sketch: closed = angle of the shut pose (a swing
+// arc is drawn only when it's given), sweep defaults to ±π/2 toward the ajar
+// pose, arc:false = bifold/french leaf drawn at its ajar angle with no arc.
+function door(parent, width, hinge, angle, mat = M.doorSlab, plan = {}) {
   const g = new THREE.Group();
   g.add(box(0.04, 0, -0.06, width - 0.04, DOOR_H - 0.1, 0.06, mat));
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), M.chrome);
@@ -106,6 +109,16 @@ function door(parent, width, hinge, angle, mat = M.doorSlab) {
   g.position.set(hinge[0], 0, hinge[1]);
   g.rotation.y = angle;
   parent.add(g);
+
+  const closed = plan.closed ?? angle;
+  let sweep = plan.sweep;
+  if (sweep === undefined) {
+    let diff = angle - closed;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    sweep = diff >= 0 ? Math.PI / 2 : -Math.PI / 2;
+  }
+  DOOR_ARCS.push({ w: width, hinge, angle, closed, sweep, arc: plan.arc ?? (plan.closed !== undefined) });
 }
 
 function doorFrame(parent, r, opening) {
@@ -142,7 +155,7 @@ function bathtub(parent, x0, z0, x1, z1) {
   g.add(box(x0 + 0.3, 1.0, z0 + 0.3, x1 - 0.3, 1.62, z1 - 0.3,
     new THREE.MeshStandardMaterial({ color: 0xe4e2dc, roughness: 0.3 })));
   parent.add(g);
-  reg(x0, z0, x1, z1);
+  reg(x0, z0, x1, z1, 'fixture');
 }
 
 function vanity(parent, { x0, z0, x1, z1, sinks, mirrorWall }) {
@@ -159,7 +172,7 @@ function vanity(parent, { x0, z0, x1, z1, sinks, mirrorWall }) {
   }
   if (mirrorWall === 'e') parent.add(box(x1 + 0.08, 3.4, z0 + 0.2, x1 + 0.14, 7.2, z1 - 0.2, M.mirror));
   if (mirrorWall === 'n') parent.add(box(x0 + 0.2, 3.4, z0 - 0.14, x1 - 0.2, 7.2, z0 - 0.08, M.mirror));
-  reg(x0, z0, x1, z1);
+  reg(x0, z0, x1, z1, 'fixture');
 }
 
 function wireShelf(parent, x0, z0, x1, z1, y) {
@@ -198,14 +211,14 @@ function buildKitchen(g) {
   arc.position.set(20.9, 4.27, 15.15);
   arc.rotation.y = Math.PI / 2;
   g.add(arc);
-  reg(px0 - 0.15, 14.13, px1, 16.62);   // base footprint; stools tuck under the bar overhang
+  reg(px0 - 0.15, 14.13, px1, 16.62, 'fixture');   // base footprint; stools tuck under the bar overhang
 
   // --- countertop narrows in front of the column (straight south edge) and stops
   // just short of the east windows (small gap); full glass between here and the chase
   g.add(box(24.6, 0, 15.7, 27.2, 2.95, 16.45, M.maple));         // narrow strip base
   g.add(box(24.6, 2.95, 15.62, 27.25, 3.12, 16.62, M.granite));
   g.add(box(25.72, 0.35, 16.45, 25.77, 2.8, 16.47, M.frame));
-  reg(24.6, 15.62, 27.25, 16.62);
+  reg(24.6, 15.62, 27.25, 16.62, 'fixture');
 
   // --- south run: fridge, base + upper cabinets, range, microwave ---
   g.add(box(19.3, 0, 20.35, 25.5, 2.95, 22.25, M.maple));
@@ -221,7 +234,7 @@ function buildKitchen(g) {
   g.add(box(16.5, 3.62, 19.78, 19.2, 3.68, 19.8, M.blackAppliance));
   g.add(box(17.0, 3.9, 19.68, 17.12, 5.5, 19.8, M.chrome));
   g.add(box(17.0, 2.0, 19.68, 17.12, 3.4, 19.8, M.chrome));
-  reg(16.45, 19.78, 25.55, 22.25);
+  reg(16.45, 19.78, 25.55, 22.25, 'fixture');
   // range
   g.add(box(21.4, 0.1, 20.3, 23.9, 3.05, 22.25, M.stainless));
   g.add(box(21.45, 3.05, 20.35, 23.85, 3.1, 22.2, M.blackAppliance));
@@ -260,12 +273,12 @@ function buildBaths(g) {
   bathtub(g, 0.7, 27.15, 3.2, 32.15);                                       // tub, SW corner
   vanity(g, { x0: 7.0, z0: 23.6, x1: 8.84, z1: 28.6, sinks: [[7.95, 24.9], [7.95, 27.3]], mirrorWall: 'e' });
   toilet(g, 7.55, 31.15, -Math.PI / 2);                                     // tank at east chase, faces west
-  WALL_RECTS.push({ x0: 6.3, z0: 30.4, x1: 8.8, z1: 31.9 });
+  WALL_RECTS.push({ x0: 6.3, z0: 30.4, x1: 8.8, z1: 31.9, kind: 'fixture' });
 
   // bath 2 (x 16.9-27.86, z 22.6-30.35)
   vanity(g, { x0: 17.3, z0: 22.75, x1: 20.8, z1: 24.65, sinks: [[19.05, 23.6]], mirrorWall: 'n' });
   toilet(g, 22.15, 23.4, 0);                                                // tank north, faces south
-  WALL_RECTS.push({ x0: 21.4, z0: 22.75, x1: 22.9, z1: 24.5 });
+  WALL_RECTS.push({ x0: 21.4, z0: 22.75, x1: 22.9, z1: 24.5, kind: 'fixture' });
   bathtub(g, 25.3, 23.7, 27.8, 28.7);                                       // tub against the east wall
 }
 
@@ -287,7 +300,7 @@ function buildClosets(g) {
   wDoor.rotation.z = Math.PI / 2;
   wDoor.position.set(5.61, 4.6, 35.65);
   g.add(wDoor);
-  reg(3.3, 34.5, 5.6, 36.8);
+  reg(3.3, 34.5, 5.6, 36.8, 'fixture');
 }
 
 function buildDoors(g) {
@@ -296,13 +309,13 @@ function buildDoors(g) {
   // swings west into the master bedroom
   doorFrame(g, { x0: X.div0, z0: SUITE.mDoor0, x1: X.div1, z1: SUITE.mDoor1 },
     { a0: SUITE.mDoor0, a1: SUITE.mDoor1 });
-  door(g, 2.4, [X.div0 + 0.2, SUITE.mDoor0 + 0.07], -HPI - 1.0);
+  door(g, 2.4, [X.div0 + 0.2, SUITE.mDoor0 + 0.07], -HPI - 1.0, M.doorSlab, { closed: -HPI });
   // walk-in door (opening z 18.8-21.2 in west wall x 4.3-4.65), swings into closet
   doorFrame(g, { x0: SUITE.clW0, z0: 18.8, x1: SUITE.clW1, z1: 21.2 }, { a0: 18.8, a1: 21.2 });
-  door(g, 2.4, [(SUITE.clW0 + SUITE.clW1) / 2, 18.86], -1.05);
+  door(g, 2.4, [(SUITE.clW0 + SUITE.clW1) / 2, 18.86], -1.05, M.doorSlab, { closed: -HPI });
   // master bath door (opening x 1.2-3.6 in band z 22.9-23.25), swings into bath
   doorFrame(g, { x0: 1.2, z0: Z.suS0, x1: 3.6, z1: Z.suS1 }, { a0: 1.2, a1: 3.6 });
-  door(g, 2.3, [1.25, Z.suS1 - 0.05], -1.15);
+  door(g, 2.3, [1.25, Z.suS1 - 0.05], -1.15, M.doorSlab, { closed: 0 });
   // hall closet bifold (opening z 23.55-25.35 in the divider wall)
   doorFrame(g, { x0: X.div0, z0: SUITE.scDoor0, x1: X.div1, z1: SUITE.scDoor1 },
     { a0: SUITE.scDoor0, a1: SUITE.scDoor1 });
@@ -310,16 +323,16 @@ function buildDoors(g) {
   door(g, 0.95, [X.div1 - 0.05, SUITE.scDoor1 - 0.05], HPI - 0.75 + Math.PI);
   // bath 2 door (opening z 25.7-28.0 in wall x 16.55-16.9), hinge south, swings into bath
   doorFrame(g, { x0: 16.55, z0: 25.7, x1: 16.9, z1: 28.0 }, { a0: 25.7, a1: 28.0 });
-  door(g, 2.3, [16.72, 27.95], HPI + 0.9);
+  door(g, 2.3, [16.72, 27.95], HPI + 0.9, M.doorSlab, { closed: HPI });
   // bedroom 2 door (opening z 36.0-38.5 in west wall x 13.21-13.61), beside the entry,
   // hinge south, swings into the bedroom
   doorFrame(g, { x0: 13.21, z0: 36.0, x1: 13.61, z1: 38.5 }, { a0: 36.0, a1: 38.5 });
-  door(g, 2.5, [13.4, 38.42], Math.PI * 0.25);
+  door(g, 2.5, [13.4, 38.42], Math.PI * 0.25, M.doorSlab, { closed: HPI });
   // entry: single 3' door (opening x 7.6-10.6 in south wall z 39.7-40.25),
   // hinged at the west jamb, swings into the foyer — drawn closed
   doorFrame(g, { x0: 7.6, z0: Z.b2S0, x1: 10.6, z1: Z.b2S1 }, { a0: 7.6, a1: 10.6 });
-  door(g, 2.94, [7.66, Z.b2S0 + 0.27], 0, M.entryDoor);
-  reg(7.6, Z.b2S0, 10.6, Z.b2S1); // closed door blocks movement
+  door(g, 2.94, [7.66, Z.b2S0 + 0.27], 0, M.entryDoor, { closed: 0, sweep: HPI });
+  reg(7.6, Z.b2S0, 10.6, Z.b2S1, 'door'); // closed door blocks movement
   // W/D bifold (opening z 33.6-38.6 in wall x 5.7-6.05)
   doorFrame(g, { x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 }, { a0: 33.6, a1: 38.6 });
   door(g, 2.45, [5.88, 33.65], HPI - 0.5);
@@ -387,6 +400,7 @@ function buildBalcony(g, ceil) {
 export function buildApartment(scene) {
   initMaterials();
   WALL_RECTS.length = 0;
+  DOOR_ARCS.length = 0;
 
   const group = new THREE.Group();
   const sides = { N: new THREE.Group(), S: new THREE.Group(), E: new THREE.Group(), W: new THREE.Group() };
@@ -452,7 +466,7 @@ export function buildApartment(scene) {
     p1.castShadow = p2.castShadow = false;
     fr.add(p1, p2);
     fr.add(box(17.4, 0.3, Z.n0 + 0.25, 17.55, H - 0.35, Z.n0 + 0.5, M.frame));
-    reg(15.6, Z.n0, 17.6, Z.ni); // fixed panel blocks; x 17.6-18.6 open to balcony
+    reg(15.6, Z.n0, 17.6, Z.ni, 'glazing'); // fixed panel blocks; x 17.6-18.6 open to balcony
   }
   glazing(sides.N, { x0: 18.6, z0: Z.n0, x1: 24.6, z1: Z.ni });
   wall(sides.N, { x0: 24.6, z0: Z.n0, x1: X.e1, z1: Z.ni }, [], M.plasterExt);

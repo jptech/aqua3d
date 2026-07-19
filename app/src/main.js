@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { buildApartment } from './apartment.js';
+import { buildPlanSketch } from './plansketch.js';
 import { CATALOG } from './furniture.js';
 import { Interactions } from './interact.js';
 import { MeasureTool } from './measure.js';
@@ -94,6 +95,34 @@ grid.position.set(14, 0.03, 20);
 grid.visible = false;
 scene.add(grid);
 
+// ---------- 2D plan view (sketch layer + top-down ortho camera) ----------
+// Bounds: unit (0..28.41 x 0..42.15) + balcony bulge + margin.
+const PB = { x0: -2, x1: 35.5, z0: -6.5, z1: 44 };
+const planCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 200);
+planCam.up.set(0, 0, -1);   // north (-z) is screen-up; must be set before controls
+planCam.position.set((PB.x0 + PB.x1) / 2, 100, (PB.z0 + PB.z1) / 2);
+planCam.lookAt((PB.x0 + PB.x1) / 2, 0, (PB.z0 + PB.z1) / 2);
+const planControls = new OrbitControls(planCam, renderer.domElement);
+planControls.target.set((PB.x0 + PB.x1) / 2, 0, (PB.z0 + PB.z1) / 2);
+planControls.enableRotate = false;
+planControls.screenSpacePanning = true;
+planControls.enableDamping = true;
+planControls.dampingFactor = 0.08;
+planControls.minZoom = 0.6;
+planControls.maxZoom = 10;
+planControls.zoomToCursor = true;
+planControls.enabled = false;
+const planSketch = buildPlanSketch({ balconyPoly: world.balconyPoly });
+scene.add(planSketch);
+// contain-fit the plan bounds into the ortho frustum (zoom is handled by controls)
+function fitPlanCam(aspect) {
+  const hx = (PB.x1 - PB.x0) / 2, hz = (PB.z1 - PB.z0) / 2;
+  let hw, hh;
+  if (aspect >= hx / hz) { hh = hz; hw = hz * aspect; } else { hw = hx; hh = hx / aspect; }
+  planCam.left = -hw; planCam.right = hw; planCam.top = hh; planCam.bottom = -hh;
+  planCam.updateProjectionMatrix();
+}
+
 // ---------- interactions ----------
 const STORAGE = 'aqua3d.layout.v5';
 let saveTimer = null;
@@ -120,7 +149,7 @@ const VIEWS = {
 };
 let camAnim = null;
 function goView(name) {
-  if (walk.on) return;
+  if (walk.on || planOn) return;
   const v = VIEWS[name];
   camAnim = {
     t: 0,
@@ -158,6 +187,7 @@ const hintsEl = document.getElementById('hints');
 let hintsHome = null;
 function setWalk(on) {
   if (on === walk.on) return;
+  if (on && planOn) setPlan(false);
   if (hintsHome === null) hintsHome = hintsEl.innerHTML;
   walk.on = on;
   document.getElementById('t-walk').classList.toggle('on', on);
@@ -197,11 +227,51 @@ renderer.domElement.addEventListener('click', () => {
 });
 window.addEventListener('keydown', (e) => {
   if ((e.key === 'v' || e.key === 'V') && e.target.tagName !== 'INPUT') { setWalk(!walk.on); return; }
+  if ((e.key === 'p' || e.key === 'P') && e.target.tagName !== 'INPUT') { setPlan(!planOn); return; }
   if (!walk.on) return;
   walk.keys.add(e.code);
   if (e.code.startsWith('Arrow')) e.preventDefault();
 });
 window.addEventListener('keyup', (e) => walk.keys.delete(e.code));
+
+// ---------- 2D plan mode ----------
+let planOn = false, gridWas = false;
+function setPlan(on) {
+  if (on === planOn) return;
+  if (on && walk.on) setWalk(false);
+  if (hintsHome === null) hintsHome = hintsEl.innerHTML;
+  planOn = on;
+  document.getElementById('t-plan').classList.toggle('on', on);
+  if (on) {
+    camAnim = null;
+    controls.enabled = false;          // perspective controls freeze with their state intact
+    planControls.enabled = true;
+    interactions.camera = planCam;
+    interactions.controls = planControls;
+    measure.camera = planCam;
+    measure.planar = true;
+    measure.clear();
+    world.group.visible = false;
+    gridWas = grid.visible;
+    grid.visible = false;
+    planSketch.visible = true;
+    interactions.setPlanMode(true);
+    hintsEl.innerHTML = '<b>Drag</b> furniture · <b>Q / E</b> rotate · right-drag or two-finger to pan · scroll zoom · <b>P</b> to exit 2D plan';
+  } else {
+    planControls.enabled = false;
+    controls.enabled = true;
+    interactions.camera = camera;
+    interactions.controls = controls;
+    measure.camera = camera;
+    measure.planar = false;
+    measure.clear();
+    world.group.visible = true;
+    grid.visible = gridWas;
+    planSketch.visible = false;
+    interactions.setPlanMode(false);
+    hintsEl.innerHTML = hintsHome;
+  }
+}
 
 // ---------- UI ----------
 const $ = (s) => document.querySelector(s);
@@ -220,7 +290,7 @@ for (const cat of cats) {
     b.className = 'item-btn';
     b.innerHTML = `${def.name}<span>${fmt(def.w)} × ${fmt(def.d)}</span>`;
     b.onclick = () => {
-      const t = controls.target;
+      const t = planOn ? planControls.target : controls.target;
       interactions.addItem(def.id, Math.round(t.x * 2) / 2, Math.round(t.z * 2) / 2, 0);
     };
     wrap.appendChild(b);
@@ -243,10 +313,13 @@ $('#t-ceiling').onclick = (e) => {
   e.target.classList.toggle('on', world.ceilingGroup.visible);
 };
 $('#t-labels').onclick = (e) => {
-  world.labelGroup.visible = !world.labelGroup.visible;
-  e.target.classList.toggle('on', world.labelGroup.visible);
+  const on = !world.labelGroup.visible;
+  world.labelGroup.visible = on;
+  planSketch.userData.labels.visible = on;
+  e.target.classList.toggle('on', on);
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
+$('#t-plan').onclick = () => setPlan(!planOn);
 $('#t-measure').onclick = () => setMeasure(!measureOn);
 $('#t-walk').onclick = () => setWalk(!walk.on);
 
@@ -392,6 +465,7 @@ function fitViewport() {
   if (w === 0 || h === 0) return;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  fitPlanCam(w / h);
   renderer.setSize(w, h);
 }
 function tick() {
@@ -415,6 +489,8 @@ function tick() {
     camera.position.y = EYE;
     camera.rotation.order = 'YXZ';
     camera.rotation.set(walk.pitch, -walk.yaw, 0);
+  } else if (planOn) {
+    planControls.update();
   } else {
     if (camAnim) {
       camAnim.t += dt / 0.9;
@@ -425,10 +501,10 @@ function tick() {
     }
     controls.update();
   }
-  updateFade();
+  if (!planOn) updateFade();
   interactions.update();
   measure.tick(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
-  renderer.render(scene, camera);
+  renderer.render(scene, planOn ? planCam : camera);
 }
 tick();
 
