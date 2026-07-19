@@ -40,7 +40,7 @@ approximate, especially the refined one's lower third).
 - **Walk mode needs floor continuity**: every door/opening in a registered wall needs a
   matching `th-*` threshold rect in `ROOMS`, or you can't walk through it.
 - **Floor rects must not overlap** (z-fighting) and walls sit on y=0 over them.
-- Saved layouts live in localStorage `aqua3d.layout.v4` (see `STORAGE` in main.js).
+- Saved layouts live in localStorage `aqua3d.layout.v5` (see `STORAGE` in main.js).
   Bump the version only if saved furniture would now sit inside new walls.
 - Cabinet-door "seams" are hairline boxes (~0.05 ft wide). A fat seam renders as a big
   black panel — size them thin.
@@ -55,7 +55,9 @@ approximate, especially the refined one's lower third).
 - Kitchen: sliding glass door is on the **north** wall; peninsula counter is contiguous,
   narrowing in front of the countertop column (which extends to the east wall); then
   **full window gap**, then the chase column against the kitchen/bath wall.
-- Laundry closet spans the foyer's full west side, no gaps.
+- Laundry closet spans the foyer's full west side, no gaps — and it is deep: the
+  bifold plane sits at x≈5.7–6.05 with the W/D stack at its east face, so the foyer's
+  usable width starts there.
 - Bedroom 2: door beside the apartment entry (west wall, hinged south), corner column at
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.

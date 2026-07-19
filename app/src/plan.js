@@ -111,7 +111,7 @@ export const ROOMS = [
   { id: 'th-bed2',   name: '', label: '', floor: 'carpet',
     x0: 13.21, z0: 36.0, x1: 13.61, z1: 38.5 },
   { id: 'th-wd',     name: '', label: '', floor: 'tile',
-    x0: 3.2, z0: 33.6, x1: 3.55, z1: 38.6 },
+    x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 },
   { id: 'th-sgd',    name: '', label: '', floor: 'tile',
     x0: 17.6, z0: Z.n0, x1: 18.6, z1: Z.ni },
 ];

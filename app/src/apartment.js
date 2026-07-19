@@ -280,14 +280,15 @@ function buildClosets(g) {
   wireShelf(g, 10.4, 23.45, 11.75, 24.4, 5.6);
   // bedroom 2 closet bump
   wireShelf(g, 15.8, 40.55, 19.9, 41.45, 5.6);
-  // stacked washer/dryer in foyer closet
-  g.add(box(0.75, 0, 34.5, 3.05, 3.1, 36.8, M.white));
-  g.add(box(0.75, 3.1, 34.5, 3.05, 6.2, 36.8, M.white));
+  // stacked washer/dryer in foyer closet (units at the east face, per the plan;
+  // the space behind them at the west is dead/plumbing depth)
+  g.add(box(3.3, 0, 34.5, 5.6, 3.1, 36.8, M.white));
+  g.add(box(3.3, 3.1, 34.5, 5.6, 6.2, 36.8, M.white));
   const wDoor = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.06, 20), M.frame);
   wDoor.rotation.z = Math.PI / 2;
-  wDoor.position.set(3.06, 4.6, 35.65);
+  wDoor.position.set(5.61, 4.6, 35.65);
   g.add(wDoor);
-  reg(0.75, 34.5, 3.05, 36.8);
+  reg(3.3, 34.5, 5.6, 36.8);
 }
 
 function buildDoors(g) {
@@ -320,10 +321,10 @@ function buildDoors(g) {
   door(g, 1.5, [7.66, Z.b2S0 + 0.27], 0, M.entryDoor);
   door(g, 1.5, [10.54, Z.b2S0 + 0.27], Math.PI, M.entryDoor);
   reg(7.6, Z.b2S0, 10.6, Z.b2S1); // closed doors block movement
-  // W/D bifold (opening z 33.6-38.6 in wall x 3.2-3.55)
-  doorFrame(g, { x0: 3.2, z0: 33.6, x1: 3.55, z1: 38.6 }, { a0: 33.6, a1: 38.6 });
-  door(g, 2.45, [3.38, 33.65], HPI - 0.5);
-  door(g, 2.45, [3.38, 38.55], -HPI + 0.5);
+  // W/D bifold (opening z 33.6-38.6 in wall x 5.7-6.05)
+  doorFrame(g, { x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 }, { a0: 33.6, a1: 38.6 });
+  door(g, 2.45, [5.88, 33.65], HPI - 0.5);
+  door(g, 2.45, [5.88, 38.55], -HPI + 0.5);
   // bedroom 2 closet french doors (opening x 15.6-20.1 in wall z 39.7-40.25)
   doorFrame(g, { x0: 15.6, z0: Z.b2S0, x1: 20.1, z1: Z.b2S1 }, { a0: 15.6, a1: 20.1 });
   door(g, 2.2, [15.68, Z.b2S0 + 0.27], -0.5);
@@ -503,8 +504,9 @@ export function buildApartment(scene) {
   wall(interior, { x0: X.wi, z0: Z.ba1S0, x1: SUITE.chaseX0, z1: Z.ba1S1 });
   // hall closet south wall
   wall(interior, { x0: SUITE.chaseX1, z0: 25.65, x1: X.div1, z1: SUITE.divEnd });
-  // W/D closet: east wall with bifold spans the full foyer side, no gaps
-  wall(interior, { x0: 3.2, z0: Z.ba1S1, x1: 3.55, z1: Z.b2S0 }, [{ a0: 33.6, a1: 38.6 }]);
+  // W/D closet: east wall with bifold spans the full foyer side, no gaps;
+  // the closet is ~5.2 ft deep (bifold plane x 5.7-6.05)
+  wall(interior, { x0: 5.7, z0: Z.ba1S1, x1: 6.05, z1: Z.b2S0 }, [{ a0: 33.6, a1: 38.6 }]);
   // countertop column: intersects the peninsula's east end and runs to the wall
   wall(interior, { x0: 24.6, z0: 13.85, x1: X.ei, z1: 15.7 });
   // kitchen south wall

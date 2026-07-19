@@ -95,7 +95,7 @@ grid.visible = false;
 scene.add(grid);
 
 // ---------- interactions ----------
-const STORAGE = 'aqua3d.layout.v4';
+const STORAGE = 'aqua3d.layout.v5';
 let saveTimer = null;
 const interactions = new Interactions({
   scene, camera, dom: renderer.domElement, controls,
