@@ -239,6 +239,8 @@ function setWalk(on) {
     walk.keys.clear();
     if (COARSE) {
       document.getElementById('walk-exit').style.display = 'block';
+      joyToHome();
+      showWalkHint();
       hintsEl.innerHTML = '<b>left half</b> drag to walk · <b>right half</b> drag to look';
     } else {
       renderer.domElement.requestPointerLock();
@@ -248,12 +250,20 @@ function setWalk(on) {
     document.exitPointerLock?.();
     document.getElementById('walk-exit').style.display = 'none';
     document.getElementById('joy').style.display = 'none';
+    hideWalkHint();
     walk.joy.id = null; walk.joy.f = 0; walk.joy.s = 0;
     walk.lookId = null; walk.lookPrev = null;
     world.ceilingGroup.visible = walk.ceilWas;
     controls.enabled = true;
-    camera.position.copy(walk.prev.pos);
-    controls.target.copy(walk.prev.tgt);
+    // glide back to the pre-walk orbit view instead of hard-snapping; starting the
+    // target along the current gaze keeps the swing continuous with where you looked
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    camAnim = {
+      t: 0,
+      p0: camera.position.clone(), p1: walk.prev.pos.clone(),
+      t0: camera.position.clone().addScaledVector(fwd, 10), t1: walk.prev.tgt.clone(),
+    };
     hintsEl.innerHTML = hintsHome;
   }
 }
@@ -272,12 +282,34 @@ renderer.domElement.addEventListener('click', () => {
 const joyEl = document.getElementById('joy');
 const joyNub = document.getElementById('joy-nub');
 const JOY_R = 54;
+// while touch-walking, the joystick idles at a resting spot so it's discoverable;
+// touching the left half re-anchors it under the thumb
+function joyToHome() {
+  joyEl.classList.add('home');
+  joyEl.style.left = ''; joyEl.style.top = '';
+  joyNub.style.left = '50%'; joyNub.style.top = '50%';
+  joyEl.style.display = 'block';
+}
+const walkHintEl = document.getElementById('walk-hint');
+let walkHintTimer = null;
+function showWalkHint() {
+  walkHintEl.classList.remove('fade');
+  walkHintEl.style.display = 'block';
+  clearTimeout(walkHintTimer);
+  walkHintTimer = setTimeout(() => walkHintEl.classList.add('fade'), 4000);
+}
+function hideWalkHint() {
+  clearTimeout(walkHintTimer);
+  walkHintEl.style.display = 'none';
+  walkHintEl.classList.remove('fade');
+}
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (!walk.on || e.pointerType !== 'touch') return;
   e.preventDefault();
   if (walk.joy.id === null && e.clientX < window.innerWidth * 0.45) {
     walk.joy.id = e.pointerId;
     walk.joy.ax = e.clientX; walk.joy.ay = e.clientY;
+    joyEl.classList.remove('home');
     joyEl.style.left = `${e.clientX - JOY_R}px`;
     joyEl.style.top = `${e.clientY - JOY_R}px`;
     joyEl.style.display = 'block';
@@ -307,7 +339,7 @@ for (const ev of ['pointerup', 'pointercancel']) {
   window.addEventListener(ev, (e) => {
     if (e.pointerId === walk.joy.id) {
       walk.joy.id = null; walk.joy.f = 0; walk.joy.s = 0;
-      joyEl.style.display = 'none';
+      if (walk.on && COARSE) joyToHome(); else joyEl.style.display = 'none';
     } else if (e.pointerId === walk.lookId) {
       walk.lookId = null; walk.lookPrev = null;
     }

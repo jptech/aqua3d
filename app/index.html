@@ -115,6 +115,12 @@
     border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
     background: rgba(18,22,28,0.35); pointer-events: none;
   }
+  #joy.home { left: 22px; top: auto; bottom: 96px; opacity: 0.7; }
+  #joy::after {
+    content: "WALK"; position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+    font: 600 11px "Segoe UI", system-ui, sans-serif; letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.8); text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  }
   #joy-nub {
     position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
     transform: translate(-50%,-50%); border-radius: 50%;
@@ -124,6 +130,15 @@
     display: none; bottom: 18px; right: 14px; padding: 10px 16px;
     font-size: 13px; color: #dfe6ec; cursor: pointer;
   }
+  #walk-hint {
+    position: fixed; z-index: 15; left: 50%; bottom: 150px; transform: translateX(-50%);
+    display: none; padding: 8px 16px; border-radius: 10px; white-space: nowrap;
+    background: rgba(18,22,28,0.82); border: 1px solid rgba(255,255,255,0.12);
+    color: #dfe6ec; font-size: 12.5px; pointer-events: none;
+    transition: opacity .6s ease; opacity: 1;
+  }
+  #walk-hint.fade { opacity: 0; }
+  #walk-hint b { color: #8fd3f2; }
 
   @media (pointer: coarse) {
     .vbtn, .tbtn { padding: 9px 12px; font-size: 13px; }
@@ -201,6 +216,7 @@
 </div>
 
 <div id="joy"><div id="joy-nub"></div></div>
+<div id="walk-hint"><b>Left thumb</b> drag joystick to walk · <b>right thumb</b> drag to look</div>
 <button id="walk-exit" class="panel">✕ Exit walk</button>
 
 <div id="hints" class="panel">
