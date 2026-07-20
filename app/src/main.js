@@ -123,6 +123,17 @@ function fitPlanCam(aspect) {
   planCam.updateProjectionMatrix();
 }
 
+// ---------- UI state (sidebar collapse, lock) ----------
+const UI_STORE = 'aqua3d.ui.v1';
+let uiState = {};
+try { uiState = JSON.parse(localStorage.getItem(UI_STORE) || '{}'); } catch { /* corrupt → defaults */ }
+function saveUI(patch) {
+  Object.assign(uiState, patch);
+  try { localStorage.setItem(UI_STORE, JSON.stringify(uiState)); } catch { /* private mode */ }
+}
+const COARSE = matchMedia('(pointer: coarse)').matches;
+const SMALL = () => window.innerWidth > 0 && window.innerWidth < 720;   // 0 = pane not sized yet
+
 // ---------- interactions ----------
 const STORAGE = 'aqua3d.layout.v5';
 let saveTimer = null;
@@ -168,13 +179,31 @@ function setMeasure(on) {
   measureOn = on;
   measure.setActive(on);
   document.getElementById('t-measure').classList.toggle('on', on);
-  interactions.enabled = !on && !walk.on;
+  syncInteractEnabled();
   if (on) interactions.deselect();
+}
+
+// ---------- lock mode ----------
+// The only place interactions.enabled is assigned; every mode setter routes here.
+let locked = false;
+function syncInteractEnabled() {
+  interactions.enabled = !measureOn && !walk.on && !locked;
+}
+function setLock(on, persist = true) {
+  locked = on;
+  document.getElementById('t-lock').classList.toggle('on', on);
+  if (on) interactions.deselect();   // #selected buttons bypass the enabled flag
+  syncInteractEnabled();
+  if (persist) saveUI({ locked: on });
 }
 
 // ---------- walk mode ----------
 const EYE = 5.2, WALK_R = 0.25;
-const walk = { on: false, yaw: 0, pitch: 0, keys: new Set(), prev: null, ceilWas: false };
+const walk = {
+  on: false, yaw: 0, pitch: 0, keys: new Set(), prev: null, ceilWas: false,
+  joy: { id: null, ax: 0, ay: 0, f: 0, s: 0 },   // touch joystick: pointer id, anchor px, analog move
+  lookId: null, lookPrev: null,                   // touch look-drag pointer
+};
 function walkable(x, z) {
   const inUnit = x > 0.85 && x < 27.56 && z > 0.85 && z < 39.4;
   // bridge through the sliding-door opening (x 21.6-24.6): the unit box ends at
@@ -195,7 +224,8 @@ function setWalk(on) {
   walk.on = on;
   document.getElementById('t-walk').classList.toggle('on', on);
   if (on && measureOn) setMeasure(false);
-  interactions.enabled = !on && !measureOn;
+  syncInteractEnabled();
+  renderer.domElement.style.touchAction = on ? 'none' : '';
   if (on) {
     interactions.deselect();
     walk.prev = { pos: camera.position.clone(), tgt: controls.target.clone() };
@@ -207,10 +237,19 @@ function setWalk(on) {
     walk.yaw = 0.12;                       // facing up the hall toward the kitchen
     walk.pitch = 0;
     walk.keys.clear();
-    renderer.domElement.requestPointerLock();
-    hintsEl.innerHTML = '<b>WASD / arrows</b> walk · <b>mouse</b> look · <b>Shift</b> run · <b>V</b> or Walk button to exit · click canvas to recapture mouse';
+    if (COARSE) {
+      document.getElementById('walk-exit').style.display = 'block';
+      hintsEl.innerHTML = '<b>left half</b> drag to walk · <b>right half</b> drag to look';
+    } else {
+      renderer.domElement.requestPointerLock();
+      hintsEl.innerHTML = '<b>WASD / arrows</b> walk · <b>mouse</b> look · <b>Shift</b> run · <b>V</b> or Walk button to exit · click canvas to recapture mouse';
+    }
   } else {
     document.exitPointerLock?.();
+    document.getElementById('walk-exit').style.display = 'none';
+    document.getElementById('joy').style.display = 'none';
+    walk.joy.id = null; walk.joy.f = 0; walk.joy.s = 0;
+    walk.lookId = null; walk.lookPrev = null;
     world.ceilingGroup.visible = walk.ceilWas;
     controls.enabled = true;
     camera.position.copy(walk.prev.pos);
@@ -224,13 +263,61 @@ document.addEventListener('mousemove', (e) => {
   walk.pitch = Math.max(-1.25, Math.min(1.25, walk.pitch - e.movementY * 0.0026));
 });
 renderer.domElement.addEventListener('click', () => {
-  if (walk.on && document.pointerLockElement !== renderer.domElement) {
+  if (walk.on && !COARSE && document.pointerLockElement !== renderer.domElement) {
     renderer.domElement.requestPointerLock();
   }
 });
+
+// touch walk: left-half drag = virtual joystick, other drags = look
+const joyEl = document.getElementById('joy');
+const joyNub = document.getElementById('joy-nub');
+const JOY_R = 54;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (!walk.on || e.pointerType !== 'touch') return;
+  e.preventDefault();
+  if (walk.joy.id === null && e.clientX < window.innerWidth * 0.45) {
+    walk.joy.id = e.pointerId;
+    walk.joy.ax = e.clientX; walk.joy.ay = e.clientY;
+    joyEl.style.left = `${e.clientX - JOY_R}px`;
+    joyEl.style.top = `${e.clientY - JOY_R}px`;
+    joyEl.style.display = 'block';
+    joyNub.style.left = '50%'; joyNub.style.top = '50%';
+  } else if (walk.lookId === null) {
+    walk.lookId = e.pointerId;
+    walk.lookPrev = { x: e.clientX, y: e.clientY };
+  }
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!walk.on || e.pointerType !== 'touch') return;
+  if (e.pointerId === walk.joy.id) {
+    let dx = e.clientX - walk.joy.ax, dy = e.clientY - walk.joy.ay;
+    const len = Math.hypot(dx, dy);
+    if (len > JOY_R) { dx *= JOY_R / len; dy *= JOY_R / len; }
+    joyNub.style.left = `${50 + (dx / JOY_R) * 50}%`;
+    joyNub.style.top = `${50 + (dy / JOY_R) * 50}%`;
+    walk.joy.f = -dy / JOY_R;
+    walk.joy.s = dx / JOY_R;
+  } else if (e.pointerId === walk.lookId && walk.lookPrev) {
+    walk.yaw += (e.clientX - walk.lookPrev.x) * 0.005;
+    walk.pitch = Math.max(-1.25, Math.min(1.25, walk.pitch - (e.clientY - walk.lookPrev.y) * 0.005));
+    walk.lookPrev = { x: e.clientX, y: e.clientY };
+  }
+});
+for (const ev of ['pointerup', 'pointercancel']) {
+  window.addEventListener(ev, (e) => {
+    if (e.pointerId === walk.joy.id) {
+      walk.joy.id = null; walk.joy.f = 0; walk.joy.s = 0;
+      joyEl.style.display = 'none';
+    } else if (e.pointerId === walk.lookId) {
+      walk.lookId = null; walk.lookPrev = null;
+    }
+  });
+}
+document.getElementById('walk-exit').onclick = () => setWalk(false);
 window.addEventListener('keydown', (e) => {
   if ((e.key === 'v' || e.key === 'V') && e.target.tagName !== 'INPUT') { setWalk(!walk.on); return; }
   if ((e.key === 'p' || e.key === 'P') && e.target.tagName !== 'INPUT') { setPlan(!planOn); return; }
+  if ((e.key === 'l' || e.key === 'L') && e.target.tagName !== 'INPUT') { setLock(!locked); return; }
   if (!walk.on) return;
   walk.keys.add(e.code);
   if (e.code.startsWith('Arrow')) e.preventDefault();
@@ -295,6 +382,7 @@ for (const cat of cats) {
     b.onclick = () => {
       const t = planOn ? planControls.target : controls.target;
       interactions.addItem(def.id, Math.round(t.x * 2) / 2, Math.round(t.z * 2) / 2, 0);
+      if (locked) interactions.deselect();   // addItem auto-selects; locked means untouchable
     };
     wrap.appendChild(b);
   }
@@ -323,8 +411,19 @@ $('#t-labels').onclick = (e) => {
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
 $('#t-plan').onclick = () => setPlan(!planOn);
+$('#t-lock').onclick = () => setLock(!locked);
 $('#t-measure').onclick = () => setMeasure(!measureOn);
 $('#t-walk').onclick = () => setWalk(!walk.on);
+
+// ---------- collapsible sidebar ----------
+const sidebarEl = document.getElementById('sidebar');
+function setSidebar(open, persist = true) {
+  sidebarEl.classList.toggle('collapsed', !open);
+  document.body.classList.toggle('sb-collapsed', !open);
+  if (persist) saveUI({ sidebar: open });
+}
+$('#sb-collapse').onclick = () => setSidebar(false);
+$('#sb-open').onclick = () => setSidebar(true);
 
 $('#b-sample').onclick = () => {
   if (confirm('Replace the current layout with the default layout?')) interactions.load(SAMPLE);
@@ -433,6 +532,12 @@ try {
   interactions.deselect();
 } catch { interactions.load(SAMPLE); interactions.deselect(); }
 
+// restore UI prefs — touch devices default to view-only: locked, sidebar collapsed.
+// Auto-chosen defaults are not persisted (the pane can even load at 0×0 width);
+// only explicit toggles save.
+setLock(uiState.locked ?? COARSE, false);
+setSidebar(uiState.sidebar ?? !(COARSE || SMALL()), false);
+
 // ---------- wall auto-fade ----------
 const SIDE_NORMALS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
 function updateFade() {
@@ -483,6 +588,8 @@ function tick() {
     if (walk.keys.has('KeyS') || walk.keys.has('ArrowDown')) f -= 1;
     if (walk.keys.has('KeyA') || walk.keys.has('ArrowLeft')) s -= 1;
     if (walk.keys.has('KeyD') || walk.keys.has('ArrowRight')) s += 1;
+    f = Math.max(-1, Math.min(1, f + walk.joy.f));
+    s = Math.max(-1, Math.min(1, s + walk.joy.s));
     if (f || s) {
       const dx = (Math.sin(walk.yaw) * f + Math.cos(walk.yaw) * s) * sp;
       const dz = (-Math.cos(walk.yaw) * f + Math.sin(walk.yaw) * s) * sp;

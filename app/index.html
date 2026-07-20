@@ -29,15 +29,27 @@
     background: rgba(255,255,255,0.08); color: #dfe6ec; border: 1px solid rgba(255,255,255,0.1);
     padding: 5px 10px; border-radius: 7px; font-size: 12px; cursor: pointer;
   }
-  .vbtn:hover, .tbtn:hover { background: rgba(255,255,255,0.16); }
   .tbtn.on { background: #2a6d94; border-color: #4da3cd; }
+  .vbtn:active, .tbtn:active, .item-btn:active { background: rgba(255,255,255,0.2); }
   .sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); }
 
   #sidebar {
     top: 70px; left: 12px; bottom: 52px; width: 216px;
     display: flex; flex-direction: column; padding: 12px 0 8px;
+    transition: transform .22s ease, opacity .22s ease;
   }
+  #sidebar.collapsed { transform: translateX(-115%); opacity: 0; pointer-events: none; }
+  .sb-head { display: flex; align-items: center; justify-content: space-between; }
   #sidebar h2 { font-size: 13px; font-weight: 600; padding: 0 14px 8px; color: #9fc8de; }
+  #sb-collapse {
+    background: none; border: none; color: #8aa2b2; font-size: 15px;
+    cursor: pointer; padding: 0 12px 8px; line-height: 1;
+  }
+  #sb-open {
+    display: none; top: 70px; left: 12px; padding: 8px 12px;
+    font-size: 12px; color: #dfe6ec; cursor: pointer;
+  }
+  body.sb-collapsed #sb-open { display: block; }
   #catalog { overflow-y: auto; flex: 1; padding: 0 10px; }
   #catalog::-webkit-scrollbar { width: 8px; }
   #catalog::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
@@ -51,7 +63,6 @@
     color: #e4eaef; border-radius: 8px; padding: 7px 6px; font-size: 11.5px;
     cursor: pointer; text-align: left; line-height: 1.25;
   }
-  .item-btn:hover { background: rgba(127,196,232,0.22); border-color: rgba(127,196,232,0.5); }
   .item-btn span { display: block; color: #93a7b4; font-size: 10px; }
   #sidebar .foot { display: flex; gap: 6px; padding: 8px 12px 0; }
   #sidebar .foot:last-of-type { padding-bottom: 4px; }
@@ -59,9 +70,6 @@
     flex: 1; padding: 7px 0; border-radius: 8px; font-size: 12px; cursor: pointer;
     border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.08); color: #e4eaef;
   }
-  #b-export:hover, #b-import:hover { background: rgba(127,196,232,0.25); }
-  #b-sample:hover { background: rgba(110,190,130,0.25); }
-  #b-clear:hover { background: rgba(230,110,110,0.25); }
 
   #selected {
     display: none; bottom: 52px; left: 50%; transform: translateX(-50%);
@@ -72,8 +80,15 @@
     background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.12);
     color: #e4eaef; border-radius: 7px; padding: 6px 11px; font-size: 12px; cursor: pointer;
   }
-  #selected button:hover { background: rgba(255,255,255,0.2); }
-  #s-del:hover { background: rgba(230,90,90,0.4); }
+  @media (hover: hover) {
+    .vbtn:hover, .tbtn:hover { background: rgba(255,255,255,0.16); }
+    .item-btn:hover { background: rgba(127,196,232,0.22); border-color: rgba(127,196,232,0.5); }
+    #b-export:hover, #b-import:hover { background: rgba(127,196,232,0.25); }
+    #b-sample:hover { background: rgba(110,190,130,0.25); }
+    #b-clear:hover { background: rgba(230,110,110,0.25); }
+    #selected button:hover { background: rgba(255,255,255,0.2); }
+    #s-del:hover { background: rgba(230,90,90,0.4); }
+  }
 
   #hints {
     bottom: 12px; left: 50%; transform: translateX(-50%);
@@ -93,6 +108,38 @@
     background: rgba(20, 24, 30, 0.88); color: #5ce0a8; border: 1px solid rgba(92,224,168,0.45);
     font: 600 12px "Segoe UI", system-ui, sans-serif; padding: 2px 8px; border-radius: 6px;
     pointer-events: none; display: none; white-space: nowrap;
+  }
+
+  #joy {
+    display: none; position: fixed; z-index: 15; width: 108px; height: 108px;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
+    background: rgba(18,22,28,0.35); pointer-events: none;
+  }
+  #joy-nub {
+    position: absolute; left: 50%; top: 50%; width: 44px; height: 44px;
+    transform: translate(-50%,-50%); border-radius: 50%;
+    background: rgba(127,196,232,0.55); border: 1px solid rgba(127,196,232,0.8);
+  }
+  #walk-exit {
+    display: none; bottom: 18px; right: 14px; padding: 10px 16px;
+    font-size: 13px; color: #dfe6ec; cursor: pointer;
+  }
+
+  @media (pointer: coarse) {
+    .vbtn, .tbtn { padding: 9px 12px; font-size: 13px; }
+    .item-btn { padding: 10px 8px; font-size: 12.5px; }
+    #sidebar .foot button { padding: 10px 0; font-size: 13px; }
+    #selected button { padding: 10px 14px; font-size: 13px; }
+    #sb-open { padding: 10px 14px; font-size: 13px; }
+  }
+
+  @media (max-width: 720px) {
+    #topbar { top: 8px; gap: 8px; padding: 6px 10px; }
+    #topbar .title, #topbar .sep { display: none; }  /* keep one scrollable row — wrapping would overlap the sidebar */
+    #sidebar { top: 58px; bottom: 8px; width: min(216px, 62vw); }
+    #sb-open { top: 58px; }
+    #hints { display: none; }
+    #selected { bottom: 10px; max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; }
   }
 </style>
 </head>
@@ -121,13 +168,17 @@
   </div>
   <div class="sep"></div>
   <div class="btn-row">
+    <button class="tbtn" id="t-lock" title="Lock furniture — orbit/zoom only (L)">🔒 Lock</button>
     <button class="tbtn" id="t-measure" title="Click two points to measure — Shift: snap ½ ft · Ctrl: lock to 90°">📏 Measure</button>
     <button class="tbtn" id="t-walk" title="First-person walkthrough (V)">🚶 Walk</button>
   </div>
 </div>
 
 <div id="sidebar" class="panel">
-  <h2>Furniture</h2>
+  <div class="sb-head">
+    <h2>Furniture</h2>
+    <button id="sb-collapse" title="Hide furniture panel">«</button>
+  </div>
   <div id="catalog"></div>
   <div class="foot">
     <button id="b-export" title="Download the current layout as a JSON file">Export</button>
@@ -139,6 +190,7 @@
   </div>
   <input type="file" id="import-file" accept=".json,application/json" style="display:none">
 </div>
+<button id="sb-open" class="panel" title="Show furniture panel">Furniture »</button>
 
 <div id="selected" class="panel">
   <span id="sel-name"></span>
@@ -147,6 +199,9 @@
   <button id="s-dup" title="Duplicate (D)">Duplicate</button>
   <button id="s-del" title="Delete">Delete</button>
 </div>
+
+<div id="joy"><div id="joy-nub"></div></div>
+<button id="walk-exit" class="panel">✕ Exit walk</button>
 
 <div id="hints" class="panel">
   <b>Drag</b> furniture to move · <b>Q / E</b> rotate · <b>Shift</b> snap ½ ft · <b>D</b> duplicate · <b>Del</b> remove · orbit with mouse, scroll to zoom
