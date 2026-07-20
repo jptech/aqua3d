@@ -100,7 +100,7 @@ function seat(w, d, { arms = true, backH = 2.6, name = '' } = {}) {
 export const CATALOG = [
   // ---- owned furniture (real dimensions) ----
   {
-    id: 'my-tv', name: 'My TV console 64" + 65" TV', cat: 'My Furniture', w: 5.33, d: 1.33, h: 5.1,
+    id: 'my-tv', name: 'TV console 64" + 65" TV', cat: 'My Furniture', w: 5.33, d: 1.33, h: 5.1,
     build: () => {
       const g = new THREE.Group(), M2 = m();
       g.add(B(5.33, 1.4, 1.33, M2.walnut, 0, 0.3, 0));
@@ -111,7 +111,7 @@ export const CATALOG = [
     },
   },
   {
-    id: 'my-dining', name: 'My dining table 47×28', cat: 'My Furniture', w: 3.92, d: 2.33, h: 2.45, surface: true,
+    id: 'my-dining', name: 'Dining table 47×28', cat: 'My Furniture', w: 3.92, d: 2.33, h: 2.45, surface: true,
     build: () => {
       const g = new THREE.Group();
       g.add(B(3.92, 0.16, 2.33, m().walnut, 0, 2.29, 0));
@@ -120,7 +120,7 @@ export const CATALOG = [
     },
   },
   {
-    id: 'my-desk-l', name: 'My sit-stand desk 60×29', cat: 'My Furniture', w: 5.0, d: 2.42, h: 3.8, surface: true,
+    id: 'my-desk-l', name: 'Sit-stand desk 60×29', cat: 'My Furniture', w: 5.0, d: 2.42, h: 3.8, surface: true,
     build: () => {
       const g = new THREE.Group(), M2 = m();
       g.add(B(5.0, 0.15, 2.42, M2.oak, 0, 2.35, 0));
@@ -134,7 +134,7 @@ export const CATALOG = [
     },
   },
   {
-    id: 'my-desk-s', name: 'My sit-stand desk 48×23', cat: 'My Furniture', w: 4.0, d: 1.92, h: 3.3, surface: true,
+    id: 'my-desk-s', name: 'Sit-stand desk 48×23', cat: 'My Furniture', w: 4.0, d: 1.92, h: 3.3, surface: true,
     build: () => {
       const g = new THREE.Group(), M2 = m();
       g.add(B(4.0, 0.14, 1.92, M2.oak, 0, 2.35, 0));
@@ -150,7 +150,7 @@ export const CATALOG = [
     },
   },
   {
-    id: 'my-shelf', name: 'My bookshelf 23×12 (62" tall)', cat: 'My Furniture', w: 1.92, d: 1.0, h: 5.17,
+    id: 'my-shelf', name: 'Bookshelf 23×12 (62" tall)', cat: 'My Furniture', w: 1.92, d: 1.0, h: 5.17,
     build: () => {
       const g = new THREE.Group();
       g.add(B(1.92, 5.17, 1.0, m().oak));
@@ -159,8 +159,8 @@ export const CATALOG = [
       return g;
     },
   },
-  { id: 'my-fullxl', name: 'My Full XL bed 54×80', cat: 'My Furniture', w: 4.5, d: 7.2, h: 3.6, build: bed(4.5, 7.2) },
-  { id: 'my-queen', name: 'My Queen bed 60×80', cat: 'My Furniture', w: 5.0, d: 7.2, h: 3.6, build: bed(5.0, 7.2) },
+  { id: 'my-fullxl', name: 'Full XL bed 54×80', cat: 'My Furniture', w: 4.5, d: 7.2, h: 3.6, build: bed(4.5, 7.2) },
+  { id: 'my-queen', name: 'Queen bed 60×80', cat: 'My Furniture', w: 5.0, d: 7.2, h: 3.6, build: bed(5.0, 7.2) },
   // ---- living ----
   { id: 'sofa', name: 'Sofa 84"', cat: 'Living', w: 7.0, d: 3.1, h: 2.7, build: seat(7.0, 3.1) },
   { id: 'loveseat', name: 'Loveseat 62"', cat: 'Living', w: 5.2, d: 3.0, h: 2.7, build: seat(5.2, 3.0) },
