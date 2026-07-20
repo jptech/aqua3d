@@ -51,8 +51,11 @@ approximate, especially the refined one's lower third).
   walk-in (door on its west wall) to the bath. Bath reachable only via the master.
 - One straight wall plane (x 11.88–12.28) runs from the north divider column to the hall
   closet's south end: master entry door, walk-in back wall, and hall-closet bifold are
-  all in it.
-- Kitchen: sliding glass door is on the **north** wall; peninsula counter is contiguous,
+  all in it. The master entry door and the walk-in door both hinge on their **south**
+  jambs (master swings west into the bedroom, walk-in opens inward into the closet).
+- Kitchen: sliding glass door is on the **north** wall — the sliding assembly spans the
+  full bay between the divider column and the NE corner mass (x 13.7–24.6), with the
+  walkable opening at its east end (x 21.6–24.6); peninsula counter is contiguous,
   narrowing in front of the countertop column (which extends to the east wall); the
   narrow run stops just short of the east windows (small gap, counter ends ≈x 27.2); then
   **full window gap**, then the chase column against the kitchen/bath wall.

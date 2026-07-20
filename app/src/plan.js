@@ -113,7 +113,7 @@ export const ROOMS = [
   { id: 'th-wd',     name: '', label: '', floor: 'tile',
     x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 },
   { id: 'th-sgd',    name: '', label: '', floor: 'tile',
-    x0: 17.6, z0: Z.n0, x1: 18.6, z1: Z.ni },
+    x0: 21.6, z0: Z.n0, x1: 24.6, z1: Z.ni },
 ];
 
 // Rectangular regions where furniture may sit.

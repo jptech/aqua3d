@@ -305,14 +305,15 @@ function buildClosets(g) {
 
 function buildDoors(g) {
   const HPI = Math.PI / 2;
-  // master entry door (opening z 13.55-15.95 in the divider wall), hinge north,
+  // master entry door (opening z 13.55-15.95 in the divider wall), hinge south,
   // swings west into the master bedroom
   doorFrame(g, { x0: X.div0, z0: SUITE.mDoor0, x1: X.div1, z1: SUITE.mDoor1 },
     { a0: SUITE.mDoor0, a1: SUITE.mDoor1 });
-  door(g, 2.4, [X.div0 + 0.2, SUITE.mDoor0 + 0.07], -HPI - 1.0, M.doorSlab, { closed: -HPI });
-  // walk-in door (opening z 18.8-21.2 in west wall x 4.3-4.65), swings into closet
+  door(g, 2.4, [X.div0 + 0.2, SUITE.mDoor1 - 0.07], HPI + 1.0, M.doorSlab, { closed: HPI });
+  // walk-in door (opening z 18.8-21.2 in west wall x 4.3-4.65), hinge south,
+  // opens inward into the closet
   doorFrame(g, { x0: SUITE.clW0, z0: 18.8, x1: SUITE.clW1, z1: 21.2 }, { a0: 18.8, a1: 21.2 });
-  door(g, 2.4, [(SUITE.clW0 + SUITE.clW1) / 2, 18.86], -1.05, M.doorSlab, { closed: -HPI });
+  door(g, 2.4, [(SUITE.clW0 + SUITE.clW1) / 2, 21.14], HPI - 1.05, M.doorSlab, { closed: HPI });
   // master bath door (opening x 1.2-3.6 in band z 22.9-23.25), swings into bath
   doorFrame(g, { x0: 1.2, z0: Z.suS0, x1: 3.6, z1: Z.suS1 }, { a0: 1.2, a1: 3.6 });
   door(g, 2.3, [1.25, Z.suS1 - 0.05], -1.15, M.doorSlab, { closed: 0 });
@@ -454,21 +455,23 @@ export function buildApartment(scene) {
   wall(sides.N, { x0: X.w0, z0: Z.n0, x1: 1.5, z1: Z.ni }, [], M.plasterExt);
   glazing(sides.N, { x0: 1.5, z0: Z.n0, x1: 11.5, z1: Z.ni });
   wall(sides.N, { x0: 11.5, z0: Z.n0, x1: 13.7, z1: Z.ni }, [], M.plasterExt);
-  glazing(sides.N, { x0: 13.7, z0: Z.n0, x1: 15.6, z1: Z.ni }, { mullionEvery: 3 });
-  { // sliding glass door to the north balcony (x 15.6-18.6)
+  { // sliding glass door assembly spans the full bay between the divider column
+    // and the NE corner mass (x 13.7-24.6, per the refined plan): fixed west
+    // panel + slider drawn partly open; open gap x 21.6-24.6 out to the balcony
     const fr = sides.N;
-    fr.add(box(15.6, 0, Z.n0, 18.6, 0.3, Z.ni, M.frame));
-    fr.add(box(15.6, H - 0.35, Z.n0, 18.6, H, Z.ni, M.frame));
-    fr.add(box(15.54, 0.3, Z.n0, 15.74, H - 0.35, Z.ni, M.frame));
-    fr.add(box(18.46, 0.3, Z.n0, 18.66, H - 0.35, Z.ni, M.frame));
-    const p1 = box(15.7, 0.3, Z.n0 + 0.08, 17.2, H - 0.35, Z.n0 + 0.19, M.glass);  // fixed
-    const p2 = box(15.9, 0.3, Z.n0 + 0.31, 17.55, H - 0.35, Z.n0 + 0.42, M.glass); // slid open
+    fr.add(box(13.7, 0, Z.n0, 24.6, 0.3, Z.ni, M.frame));                          // sill track
+    fr.add(box(13.7, H - 0.35, Z.n0, 24.6, H, Z.ni, M.frame));                     // header
+    fr.add(box(13.64, 0.3, Z.n0, 13.84, H - 0.35, Z.ni, M.frame));                 // west jamb
+    fr.add(box(24.46, 0.3, Z.n0, 24.66, H - 0.35, Z.ni, M.frame));                 // east jamb
+    const p1 = box(13.8, 0.3, Z.n0 + 0.08, 19.15, H - 0.35, Z.n0 + 0.19, M.glass); // fixed west panel
+    const p2 = box(16.15, 0.3, Z.n0 + 0.31, 21.6, H - 0.35, Z.n0 + 0.42, M.glass); // slider, partly open
     p1.castShadow = p2.castShadow = false;
     fr.add(p1, p2);
-    fr.add(box(17.4, 0.3, Z.n0 + 0.25, 17.55, H - 0.35, Z.n0 + 0.5, M.frame));
-    reg(15.6, Z.n0, 17.6, Z.ni, 'glazing'); // fixed panel blocks; x 17.6-18.6 open to balcony
+    for (const [s0, s1] of [[19.0, 19.15], [16.15, 16.3], [21.45, 21.6]]) {        // panel stiles
+      fr.add(box(s0, 0.3, Z.n0 + 0.04, s1, H - 0.35, Z.n0 + 0.46, M.frame));
+    }
+    reg(13.7, Z.n0, 21.6, Z.ni, 'glazing'); // panels block; x 21.6-24.6 open to balcony
   }
-  glazing(sides.N, { x0: 18.6, z0: Z.n0, x1: 24.6, z1: Z.ni });
   wall(sides.N, { x0: 24.6, z0: Z.n0, x1: X.e1, z1: Z.ni }, [], M.plasterExt);
   // NE structural column (interior mass)
   wall(interior, { x0: 24.7, z0: Z.ni, x1: X.ei, z1: 4.8 }, [], M.plaster);

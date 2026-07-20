@@ -177,7 +177,10 @@ const EYE = 5.2, WALK_R = 0.25;
 const walk = { on: false, yaw: 0, pitch: 0, keys: new Set(), prev: null, ceilWas: false };
 function walkable(x, z) {
   const inUnit = x > 0.85 && x < 27.56 && z > 0.85 && z < 39.4;
-  if (!inUnit && !pointInPoly(x, z, world.balconyPoly)) return false;
+  // bridge through the sliding-door opening (x 21.6-24.6): the unit box ends at
+  // z 0.85 and the balcony poly starts at z 0, so cover the doorway strip
+  const inDoor = x > 21.85 && x < 24.35 && z > -0.2 && z < 1.2;
+  if (!inUnit && !inDoor && !pointInPoly(x, z, world.balconyPoly)) return false;
   for (const r of world.obstacles) {
     if (x > r.x0 - WALK_R && x < r.x1 + WALK_R && z > r.z0 - WALK_R && z < r.z1 + WALK_R) return false;
   }
@@ -379,7 +382,7 @@ $('#s-del').onclick = () => interactions.removeSelected();
 
 // ---------- default layout ----------
 // Keeps the living area open: TV on the west divider wall, sofa facing it, a round
-// dining table by the NE windows, and a clear path to the balcony door (x 17.6-18.6).
+// dining table by the NE windows, and a clear path to the balcony door (x 21.6-24.6).
 const HPI = Math.PI / 2;
 const SAMPLE = [
   // living (NE corner x>24.7, z<4.8 is a structural column — keep clear)
