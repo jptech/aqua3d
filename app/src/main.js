@@ -546,8 +546,6 @@ const SAMPLE = [
   { id: 'rug58', x: 20.3, z: 35.6, r: 0 },
   { id: 'my-desk-l', x: 26.5, z: 37.0, r: HPI },
   { id: 'taskchair', x: 24.7, z: 37.0, r: HPI },
-  // entry
-  { id: 'console', x: 6.8, z: 39.05, r: Math.PI },
   // balcony — bistro set on the east curve, lounger further south, sofa + planter north
   { id: 'bistro', x: 30.7, z: 6.1, r: 0 },
   { id: 'outchair', x: 30.5, z: 3.0, r: 0.2 },
