@@ -110,6 +110,21 @@ walls, not the model unit's gray-blue.
 
 The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces the owner
 actually owns, at real measured dimensions — don't resize them, and prefer them over
-generic equivalents in the default layout: 64"×16" TV console with 65" TV, 47"×28"
+generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 47"×28"
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
 (62" tall), Full XL bed, Queen bed.
+
+## Layout presets
+
+Two arrays in main.js, both reachable from the sidebar and both kept collision-free:
+
+- `MODEL_UNIT` — **the default**, restored by the "Model unit" button and loaded on a
+  first visit. Traced from the Matterport scan of the building's model unit, so it uses
+  generic catalog pieces, not the `my-*` ones. Its balcony is empty because the real
+  model unit's is. The east-wall seating group is tight: there are only ~9 ft clear
+  between the NE column (ends z 4.8) and the countertop column (starts z 13.85), and
+  the sofa plus side table use ~8.7 of it — nudging them apart trips the collision pad.
+- `MY_FURNITURE` — the owner's real pieces, restored by the "My furniture" button.
+
+After editing either, reload with `localStorage.removeItem('aqua3d.layout.v5')` (a saved
+layout wins over the default) and check that no red collision pads appear.

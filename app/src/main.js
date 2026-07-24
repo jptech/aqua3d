@@ -508,9 +508,16 @@ function setSidebar(open, persist = true) {
 $('#sb-collapse').onclick = () => setSidebar(false);
 $('#sb-open').onclick = () => setSidebar(true);
 
-$('#b-sample').onclick = () => {
-  if (confirm('Replace the current layout with the default layout?')) interactions.load(SAMPLE);
-};
+// Both presets replace whatever is on the floor, so they confirm first; the
+// current arrangement is only in localStorage and there's no undo.
+function loadPreset(name, layout) {
+  if (!interactions.items.length || confirm(`Replace the current layout with the ${name} layout?`)) {
+    interactions.load(layout);
+    interactions.deselect();
+  }
+}
+$('#b-sample').onclick = () => loadPreset('model unit', MODEL_UNIT);
+$('#b-mine').onclick = () => loadPreset('my furniture', MY_FURNITURE);
 $('#b-clear').onclick = () => { if (confirm('Remove all furniture?')) interactions.clear(); };
 
 // ---------- export / import ----------
@@ -562,11 +569,49 @@ $('#s-rotr').onclick = () => interactions.rotateSelected(-15);
 $('#s-dup').onclick = () => interactions.duplicateSelected();
 $('#s-del').onclick = () => interactions.removeSelected();
 
-// ---------- default layout ----------
-// Keeps the living area open: TV on the west divider wall, sofa facing it, a round
-// dining table by the NE windows, and a clear path to the balcony door (x 21.6-24.6).
+// ---------- layout presets ----------
 const HPI = Math.PI / 2;
-const SAMPLE = [
+
+// The default. Traced from the Matterport scan of the building's two-bedroom
+// model unit, room by room: navy sofa along the east glass facing a credenza and
+// wall-hung TV on the divider, a cream wingback angled in by the north windows,
+// a round pedestal table centred on the sliding door, king in the master with
+// its headboard on the west wall, queen in bedroom 2 against the north wall.
+// The model unit's balcony is unstaged, so this leaves it empty too.
+const MODEL_UNIT = [
+  // Living — the seating group runs along the east glazing, which is only 9 ft
+  // clear between the NE column (ends z 4.8) and the countertop column
+  // (starts z 13.85). Sofa + side table just fit; don't nudge them apart.
+  { id: 'sofa', x: 26.1, z: 10.25, r: -HPI },
+  { id: 'side', x: 26.4, z: 5.78, r: 0 },
+  { id: 'rug58', x: 22.8, z: 9.7, r: HPI },
+  { id: 'coffee', x: 22.9, z: 10.25, r: -HPI },
+  { id: 'armchair', x: 22.4, z: 3.2, r: 0.35 },
+  { id: 'lamp', x: 19.9, z: 1.5, r: 0 },
+  { id: 'tv', x: 13.2, z: 9.3, r: HPI },
+  // dining — round table centred on the sliding glass door
+  { id: 'roundtable', x: 17.1, z: 4.4, r: 0 },
+  { id: 'chair', x: 17.1, z: 2.3, r: 0 },
+  { id: 'chair', x: 17.1, z: 6.5, r: Math.PI },
+  { id: 'chair', x: 15.0, z: 4.4, r: HPI },
+  { id: 'chair', x: 19.2, z: 4.4, r: -HPI },
+  { id: 'stool', x: 19.8, z: 13.35, r: 0 },
+  { id: 'stool', x: 22.2, z: 13.35, r: 0 },
+  // master — king with the headboard on the west wall, chest on the divider
+  { id: 'king', x: 4.3, z: 8.7, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 4.3, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 13.1, r: HPI },
+  { id: 'dresser', x: 10.8, z: 9.0, r: -HPI },
+  // bedroom 2 — headboard on the north wall, closet doors opposite
+  { id: 'queen', x: 20.2, z: 34.4, r: 0 },
+  { id: 'nightstand', x: 16.6, z: 31.7, r: 0 },
+  { id: 'nightstand', x: 23.8, z: 31.7, r: 0 },
+];
+
+// The owner's real pieces at measured sizes (the `my-*` catalog entries), kept as
+// a second preset so the layout that was actually planned here isn't lost.
+// Keeps the living area open and a clear path to the balcony door (x 21.6-24.6).
+const MY_FURNITURE = [
   // living (NE corner x>24.7, z<4.8 is a structural column — keep clear)
   { id: 'my-tv', x: 13.35, z: 8.8, r: HPI },
   { id: 'my-shelf', x: 13.1, z: 4.9, r: HPI },
@@ -606,12 +651,12 @@ const SAMPLE = [
   { id: 'planter', x: 21.5, z: -1.2, r: 0 },
 ];
 
-// load saved layout or sample
+// load saved layout, or the model unit on a first visit
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null');
-  interactions.load(saved && saved.length ? saved : SAMPLE);
+  interactions.load(saved && saved.length ? saved : MODEL_UNIT);
   interactions.deselect();
-} catch { interactions.load(SAMPLE); interactions.deselect(); }
+} catch { interactions.load(MODEL_UNIT); interactions.deselect(); }
 
 // restore UI prefs — touch devices default to view-only: locked, sidebar collapsed.
 // Auto-chosen defaults are not persisted (the pane can even load at 0×0 width);
