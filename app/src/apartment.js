@@ -45,6 +45,10 @@ function initMaterials() {
     color: 0x9aa0a5, roughness: 0.42, metalness: 0.85, envMapIntensity: 0.55,
   });
   M.blackAppliance = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.32, metalness: 0.4 });
+  M.grate = new THREE.MeshStandardMaterial({ color: 0x191a1c, roughness: 0.8, metalness: 0.15 });
+  M.display = new THREE.MeshStandardMaterial({
+    color: 0x0d1a10, roughness: 0.3, emissive: 0x2f8f47, emissiveIntensity: 0.5,
+  });
   M.porcelain = new THREE.MeshStandardMaterial({ color: 0xf8f7f4, roughness: 0.12, envMapIntensity: 0.9 });
   // one-piece cultured-marble vanity top with integral bowls
   M.marble = new THREE.MeshStandardMaterial({ color: 0xf1ece1, roughness: 0.2, envMapIntensity: 0.8 });
@@ -56,7 +60,15 @@ function initMaterials() {
   M.doorSlab = new THREE.MeshStandardMaterial({ color: 0xf4f0e8, roughness: 0.5 });
   M.entryDoor = TEX.surfaceMaterial('walnut', { roughness: 0.45, normalScale: 0.5, envMapIntensity: 0.8 });
   M.wire = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.45, metalness: 0.4 });
-  M.mirror = new THREE.MeshStandardMaterial({ color: 0xdce8ee, roughness: 0.04, metalness: 1, envMapIntensity: 1.2 });
+  // A true mirror would need a second render pass; at metalness 1 / roughness 0
+  // it just reflects the sky, so a bathroom mirror ends up showing the sun.
+  // Dulling it reads as silvered glass without the nonsense.
+  M.mirror = new THREE.MeshStandardMaterial({
+    color: 0x9aa6ad, roughness: 0.38, metalness: 0.85, envMapIntensity: 0.18,
+  });
+  M.bowl = new THREE.MeshStandardMaterial({
+    color: 0xf1ece1, roughness: 0.16, side: THREE.DoubleSide, envMapIntensity: 0.7,
+  });
   M.tileWall = TEX.surfaceMaterial('glassTile', {
     roughness: 0.12, metalness: 0.1, normalScale: 0.5, envMapIntensity: 1.2,
   });
@@ -144,9 +156,15 @@ function glazing(parent, r, { mullionEvery = Q.mullionEvery, register = true } =
 function door(parent, width, hinge, angle, mat = M.doorSlab, plan = {}) {
   const g = new THREE.Group();
   g.add(box(0.04, 0, -0.06, width - 0.04, DOOR_H - 0.1, 0.06, mat));
-  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), M.chrome);
-  knob.position.set(width - 0.35, 3.1, 0.12);
-  g.add(knob);
+  // Satin lever on a round rose, both faces — every door in the unit has levers,
+  // not the round knob a generic model reaches for.
+  for (const s of [1, -1]) {
+    const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.04, 12), M.nickel);
+    rose.rotation.x = Math.PI / 2;
+    rose.position.set(width - 0.33, 3.1, s * 0.08);
+    g.add(rose);
+    g.add(box(width - 0.72, 3.06, s * 0.1 - 0.03, width - 0.29, 3.15, s * 0.1 + 0.03, M.nickel));
+  }
   g.position.set(hinge[0], 0, hinge[1]);
   g.rotation.y = angle;
   parent.add(g);
@@ -215,32 +233,98 @@ function bathtub(parent, x0, z0, x1, z1, tiled = '') {
   reg(x0, z0, x1, z1, 'fixture');
 }
 
-// Builder-standard vanity: maple doors with round knobs under a one-piece
-// cultured-marble top with integral bowls (not a granite slab), a frameless
-// mirror running the full cabinet width, and a multi-globe bar light above it.
-function vanity(parent, { x0, z0, x1, z1, sinks, mirrorWall }) {
-  parent.add(box(x0, 0, z0, x1, 2.7, z1, M.maple));
-  parent.add(box(x0 - 0.06, 2.7, z0 - 0.06, x1 + 0.06, 2.9, z1 + 0.06, M.marble));
-  const alongZ = (z1 - z0) > (x1 - x0);
+// Builder-standard vanity: a one-piece moulded top with recessed oval bowls (not
+// a slab with a disc sitting on it), an integral backsplash lip, maple doors with
+// round knobs, a full-width frameless mirror and a multi-globe bar light.
+// The top is assembled from strips around each bowl opening, since there's no
+// boolean here to cut a hole with.
+const TOP_Y = 2.9, DECK_Y = 2.7, OPEN_L = 1.25, OPEN_W = 0.95;
+
+// One slab of the vanity, built as strips around each bowl opening.
+function deckStrips(parent, { x0, z0, x1, z1 }, sinks, alongZ, y0, y1, mat, over) {
+  const tx0 = x0 - over, tx1 = x1 + over, tz0 = z0 - over, tz1 = z1 + over;
+  const cross = alongZ ? sinks[0][0] : sinks[0][1];     // sinks share a cross coord
+  const c0 = cross - OPEN_W / 2, c1 = cross + OPEN_W / 2;
+  parent.add(alongZ ? box(tx0, y0, tz0, c0, y1, tz1, mat)
+    : box(tx0, y0, tz0, tx1, y1, c0, mat));
+  parent.add(alongZ ? box(c1, y0, tz0, tx1, y1, tz1, mat)
+    : box(tx0, y0, c1, tx1, y1, tz1, mat));
+  const axis = sinks.map((s) => (alongZ ? s[1] : s[0])).sort((a, b) => a - b);
+  const cuts = [alongZ ? tz0 : tx0,
+    ...axis.flatMap((a) => [a - OPEN_L / 2, a + OPEN_L / 2]),
+    alongZ ? tz1 : tx1];
+  for (let i = 0; i < cuts.length; i += 2) {
+    const a0 = cuts[i], a1 = cuts[i + 1];
+    if (a1 - a0 < 0.02) continue;
+    parent.add(alongZ ? box(c0, y0, a0, c1, y1, a1, mat) : box(a0, y0, c0, a1, y1, c1, mat));
+  }
+}
+
+function vanity(parent, r) {
+  const { x0, z0, x1, z1, sinks, mirrorWall } = r;
+  const alongZ = mirrorWall === 'e';            // the run's long axis
+  // The cabinet stops short of the deck and its top rail is stripped the same way,
+  // so the bowls have somewhere to hang instead of bottoming out on solid maple.
+  parent.add(box(x0, 0, z0, x1, 2.4, z1, M.maple));
+  deckStrips(parent, r, sinks, alongZ, 2.4, DECK_Y, M.maple, 0);
+  deckStrips(parent, r, sinks, alongZ, DECK_Y, TOP_Y, M.marble, 0.06);
+  const tx0 = x0 - 0.06, tx1 = x1 + 0.06, tz0 = z0 - 0.06, tz1 = z1 + 0.06;
+  // integral backsplash lip, part of the same moulded top
+  parent.add(alongZ ? box(x1 - 0.02, TOP_Y, tz0, tx1, 3.28, tz1, M.marble)
+    : box(tx0, TOP_Y, tz0, tx1, 3.28, z0 + 0.02, M.marble));
+
   // door knobs along the front face
   const n = Math.max(2, Math.round((alongZ ? z1 - z0 : x1 - x0) / 1.7));
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n;
-    if (alongZ) knob(parent, mirrorWall === 'e' ? x0 + 0.1 : x1 - 0.1, 2.35,
-      z0 + (z1 - z0) * t, 'x', mirrorWall === 'e' ? -1 : 1);
+    if (alongZ) knob(parent, x0 + 0.1, 2.35, z0 + (z1 - z0) * t, 'x', -1);
     else knob(parent, x0 + (x1 - x0) * t, 2.35, z1 - 0.1, 'z', 1);
   }
+
   for (const [sx, sz] of sinks) {
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.42, 0.22, 20), M.marble);
-    s.scale.z = 0.78;
-    s.position.set(sx, 2.85, sz);
-    parent.add(s);
-    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.72, 10), M.chrome);
-    f.position.set(sx + (mirrorWall === 'e' ? 0.62 : 0), 3.2, sz + (mirrorWall === 'n' ? -0.58 : 0));
-    parent.add(f);
+    // Recessed oval bowl. A flat ring just under the deck closes the corners of
+    // the rectangular opening — without it you see straight through to the floor.
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.6, 1.0, 28), M.bowl);
+    ring.rotation.x = -Math.PI / 2;      // local x -> world x, local y -> world z
+    if (alongZ) ring.scale.x = OPEN_W / 1.25; else ring.scale.y = OPEN_W / 1.25;
+    ring.position.set(sx, TOP_Y - 0.004, sz);   // just under the deck, edges hidden
+    parent.add(ring);
+    const bowl = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.6, 0.3, 0.46, 20, 1, true), M.bowl);
+    if (alongZ) bowl.scale.x = OPEN_W / 1.25; else bowl.scale.z = OPEN_W / 1.25;
+    bowl.position.set(sx, TOP_Y - 0.24, sz);
+    parent.add(bowl);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 16), M.bowl);
+    if (alongZ) base.scale.x = OPEN_W / 1.25; else base.scale.z = OPEN_W / 1.25;
+    base.position.set(sx, TOP_Y - 0.45, sz);
+    parent.add(base);
+    const drain = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.02, 12), M.chrome);
+    drain.position.set(sx, TOP_Y - 0.43, sz);
+    parent.add(drain);
+
+    // deck-mounted spout with a lever either side, set against the splash
+    const bx = sx + (alongZ ? 0.62 : 0);
+    const bz = sz + (alongZ ? 0 : -0.58);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.48, 10), M.chrome);
+    post.position.set(bx, TOP_Y + 0.24, bz);
+    parent.add(post);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.34, 8), M.chrome);
+    if (alongZ) { tip.rotation.z = Math.PI / 2; tip.position.set(bx - 0.17, TOP_Y + 0.44, bz); }
+    else { tip.rotation.x = Math.PI / 2; tip.position.set(bx, TOP_Y + 0.44, bz + 0.17); }
+    parent.add(tip);
+    for (const s2 of [-1, 1]) {
+      const hx = bx + (alongZ ? 0 : s2 * 0.34), hz = bz + (alongZ ? s2 * 0.34 : 0);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.09, 10), M.chrome);
+      hub.position.set(hx, TOP_Y + 0.045, hz);
+      parent.add(hub);
+      const lv = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.26, 8), M.chrome);
+      if (alongZ) { lv.rotation.x = Math.PI / 2; lv.position.set(hx, TOP_Y + 0.11, hz + s2 * 0.1); }
+      else { lv.rotation.z = Math.PI / 2; lv.position.set(hx + s2 * 0.1, TOP_Y + 0.11, hz); }
+      parent.add(lv);
+    }
   }
-  // full-width mirror + bar light
-  const MY0 = 3.0, MY1 = 7.5;
+  // full-width mirror sitting on the splash lip, with the bar light above it
+  const MY0 = 3.3, MY1 = 7.5;
   if (mirrorWall === 'e') {
     parent.add(box(x1 + 0.06, MY0, z0, x1 + 0.11, MY1, z1, M.mirror));
     barLight(parent, x1 - 0.05, MY1 + 0.45, (z0 + z1) / 2, z1 - z0 - 0.8, 'z');
@@ -250,6 +334,25 @@ function vanity(parent, { x0, z0, x1, z1, sinks, mirrorWall }) {
     barLight(parent, (x0 + x1) / 2, MY1 + 0.45, z0 - 0.05, x1 - x0 - 0.5, 'x');
   }
   reg(x0, z0, x1, z1, 'fixture');
+}
+
+// Wall-mounted chrome towel bar on two posts.
+function towelBar(parent, x, y, z, len, axis, sign = 1) {
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, len, 8), M.chrome);
+  if (axis === 'x') bar.rotation.z = Math.PI / 2; else bar.rotation.x = Math.PI / 2;
+  bar.position.set(x, y, z);
+  parent.add(bar);
+  for (const s of [-1, 1]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.16, 8), M.chrome);
+    if (axis === 'x') {
+      post.rotation.x = Math.PI / 2;
+      post.position.set(x + s * (len / 2 - 0.03), y, z + sign * 0.08);
+    } else {
+      post.rotation.z = Math.PI / 2;
+      post.position.set(x + sign * 0.08, y, z + s * (len / 2 - 0.03));
+    }
+    parent.add(post);
+  }
 }
 
 // Chrome rod with frosted globes, mounted over a bathroom mirror.
@@ -363,20 +466,26 @@ function buildKitchen(g) {
     knob(g, px, 2.66, 16.5, 'z', 1);          // drawer
     knob(g, px, 2.15, 16.5, 'z', 1);          // door below, knob near its top rail
   }
-  // dishwasher
+  // dishwasher — stainless door, black control strip on the top edge over a
+  // recessed handle pocket
   g.add(box(17.55, 0.12, 14.6, 19.45, 2.95, 16.5, M.stainless));
   g.add(box(17.6, 2.6, 16.5, 19.4, 2.9, 16.55, M.blackAppliance));
+  g.add(box(17.72, 2.4, 16.48, 19.28, 2.55, 16.52, M.blackAppliance));
   // sink + faucet
   g.add(box(19.9, 3.12, 15.0, 21.9, 3.16, 16.3, M.stainless));
   g.add(box(20.05, 3.14, 15.15, 21.75, 3.18, 16.15,
     new THREE.MeshStandardMaterial({ color: 0x8f969b, roughness: 0.3, metalness: 0.8 })));
-  const fpost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.15, 10), M.chrome);
-  fpost.position.set(20.9, 3.7, 14.95);
+  // gooseneck pull-down faucet: post, half-torus neck, spray head on the spout end
+  const fpost = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.0, 10), M.chrome);
+  fpost.position.set(20.9, 3.62, 14.95);
   g.add(fpost);
-  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 16, Math.PI), M.chrome);
-  arc.position.set(20.9, 4.27, 15.15);
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.042, 8, 16, Math.PI), M.chrome);
+  arc.position.set(20.9, 4.12, 15.29);
   arc.rotation.y = Math.PI / 2;
   g.add(arc);
+  const sprayHead = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.26, 10), M.chrome);
+  sprayHead.position.set(20.9, 4.0, 15.63);
+  g.add(sprayHead);
   reg(px0 - 0.15, 14.13, px1, 16.62, 'fixture');   // base footprint; stools tuck under the bar overhang
 
   // --- countertop narrows in front of the column (straight south edge) and stops
@@ -387,9 +496,14 @@ function buildKitchen(g) {
   reg(24.6, 15.62, 27.25, 16.62, 'fixture');
 
   // --- south run: fridge, base + upper cabinets, range, microwave ---
-  g.add(box(19.3, 0, 20.35, 25.5, 2.95, 22.25, M.maple));
-  g.add(box(19.25, 2.95, 20.18, 25.55, 3.12, 22.25, M.granite));
-  g.add(box(19.3, 3.12, 22.05, 25.5, 3.5, 22.25, M.granite));               // backsplash curb
+  // The cabinet run and counter break either side of the range slot (x 21.4-23.9)
+  // — a continuous slab would cap the cooktop.
+  for (const [cx0, cx1] of [[19.3, 21.4], [23.9, 25.5]]) {
+    g.add(box(cx0, 0, 20.35, cx1, 2.95, 22.25, M.maple));
+    g.add(box(cx0 === 19.3 ? 19.25 : cx0, 2.95, 20.18,
+      cx1 === 25.5 ? 25.55 : cx1, 3.12, 22.25, M.granite));
+    g.add(box(cx0, 3.12, 22.05, cx1, 3.5, 22.25, M.granite));               // backsplash curb
+  }
   g.add(box(19.3, 3.5, 22.18, 25.5, 4.6, 22.25, M.tileWall));               // glass tile backsplash
   for (let i = 0; i < 2; i++) {
     g.add(box(19.7 + i * 1.35, 0.35, 20.33, 19.75 + i * 1.35, 2.8, 20.35, M.frame));
@@ -400,23 +514,47 @@ function buildKitchen(g) {
     knob(g, px, 2.15, 20.3, 'z', -1);
   }
   for (const px of [20.2, 21.0, 24.35, 25.05]) knob(g, px, 4.85, 21.3, 'z', -1);   // uppers
-  // fridge
+  // --- refrigerator: stainless top-freezer, doors hinged west so they swing into
+  // the aisle, so both bar handles sit on the east stile
   g.add(box(16.45, 0, 19.8, 19.25, 5.9, 22.2, M.stainless));
-  g.add(box(16.5, 3.62, 19.78, 19.2, 3.68, 19.8, M.blackAppliance));
-  g.add(box(17.0, 3.9, 19.68, 17.12, 5.5, 19.8, M.chrome));
-  g.add(box(17.0, 2.0, 19.68, 17.12, 3.4, 19.8, M.chrome));
-  reg(16.45, 19.78, 25.55, 22.25, 'fixture');
-  // range
-  g.add(box(21.4, 0.1, 20.3, 23.9, 3.05, 22.25, M.stainless));
-  g.add(box(21.45, 3.05, 20.35, 23.85, 3.1, 22.2, M.blackAppliance));
-  for (const [bx, bz] of [[22.0, 20.85], [23.3, 20.85], [22.0, 21.7], [23.3, 21.7]]) {
-    const burner = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.03, 16), M.frame);
-    burner.position.set(bx, 3.12, bz);
-    g.add(burner);
+  g.add(box(16.5, 3.62, 19.76, 19.2, 3.7, 19.8, M.blackAppliance));   // freezer/fridge gap
+  g.add(box(16.5, 0, 19.76, 19.2, 0.28, 19.8, M.blackAppliance));     // toe grille
+  for (const [y0, y1] of [[3.95, 5.55], [1.95, 3.35]]) {
+    g.add(box(18.85, y0, 19.61, 18.99, y1, 19.72, M.stainless));      // handle bar
+    for (const y of [y0 + 0.07, y1 - 0.07]) {                         // standoffs
+      g.add(box(18.87, y - 0.045, 19.7, 18.97, y + 0.045, 19.81, M.stainless));
+    }
   }
-  g.add(box(21.5, 1.4, 20.24, 23.8, 1.52, 20.3, M.chrome));                  // oven handle
-  // microwave + uppers
-  g.add(box(21.4, 4.5, 21.05, 23.9, 5.6, 22.25, M.blackAppliance));
+  reg(16.45, 19.78, 25.55, 22.25, 'fixture');
+  // --- range: freestanding gas, stainless body with a black glass cooktop, a
+  // raised backguard carrying the controls, and cast-iron grates over each burner
+  g.add(box(21.4, 0.1, 20.3, 23.9, 3.0, 22.25, M.stainless));
+  g.add(box(21.45, 3.0, 20.35, 23.85, 3.08, 22.05, M.blackAppliance));       // cooktop
+  for (const [bx, bz] of [[22.0, 20.9], [23.3, 20.9], [22.0, 21.6], [23.3, 21.6]]) {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.19, 0.07, 12), M.frame);
+    cap.position.set(bx, 3.11, bz);
+    g.add(cap);
+    g.add(box(bx - 0.31, 3.08, bz - 0.04, bx + 0.31, 3.16, bz + 0.04, M.grate));
+    g.add(box(bx - 0.04, 3.08, bz - 0.31, bx + 0.04, 3.16, bz + 0.31, M.grate));
+  }
+  g.add(box(21.4, 3.0, 22.05, 23.9, 3.74, 22.25, M.stainless));              // backguard
+  g.add(box(21.62, 3.16, 22.0, 23.68, 3.6, 22.06, M.blackAppliance));        // control panel
+  g.add(box(22.5, 3.32, 21.97, 22.8, 3.44, 22.02, M.display));               // clock
+  g.add(box(21.5, 0.55, 20.26, 23.8, 2.3, 20.34, M.blackAppliance));         // oven door glass
+  g.add(box(21.5, 2.46, 20.2, 23.8, 2.6, 20.3, M.chrome));                   // oven handle
+  for (const kx of [21.62, 21.98, 23.32, 23.68]) {                           // burner knobs
+    const k = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.1, 10), M.frame);
+    k.rotation.x = Math.PI / 2;
+    k.position.set(kx, 2.8, 20.26);
+    g.add(k);
+  }
+  // --- over-the-range microwave: stainless body, black glass door on the left,
+  // keypad and display on the right
+  g.add(box(21.4, 4.5, 21.05, 23.9, 5.6, 22.25, M.stainless));
+  g.add(box(21.5, 4.62, 20.99, 22.98, 5.5, 21.06, M.blackAppliance));        // door glass
+  g.add(box(23.02, 4.62, 20.99, 23.8, 5.5, 21.05, M.blackAppliance));        // keypad
+  g.add(box(23.22, 5.22, 20.96, 23.6, 5.33, 21.0, M.display));
+  g.add(box(22.82, 4.72, 20.94, 22.89, 5.4, 21.0, M.chrome));                // door handle
   g.add(box(19.3, 4.6, 21.35, 21.4, 7.3, 22.25, M.maple));
   g.add(box(23.9, 4.6, 21.35, 25.5, 7.3, 22.25, M.maple));
   g.add(box(19.3, 5.6, 21.35, 25.5, 7.3, 22.25, M.maple));
@@ -454,6 +592,8 @@ function buildBaths(g) {
   toilet(g, 22.15, 23.4, 0);                                                // tank north, faces south
   WALL_RECTS.push({ x0: 21.4, z0: 22.75, x1: 22.9, z1: 24.5, kind: 'fixture' });
   bathtub(g, 25.3, 23.7, 27.8, 28.7, 'e');                                  // tub against the east wall
+  towelBar(g, 23.5, 4.2, 30.23, 2.0, 'x', -1);                              // south wall, by the tub
+  towelBar(g, 5.5, 4.2, 32.18, 2.0, 'x', -1);                               // master bath south wall
 }
 
 function buildClosets(g) {

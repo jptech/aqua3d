@@ -238,14 +238,16 @@ const SURFACES = {
     },
   },
   glassTile: {
-    ft: 1, size: 1, bump: 3.2,               // 4 x 4 mosaic backsplash
+    // 8 x 8 per foot => ~1.5" mosaic chips, which is what the tour photo shows.
+    // At 4 per foot they read as 3" field tile and the band looks like a mural.
+    ft: 1, size: 1, bump: 3.2,
     draw(ctx, S, r) {
-      ctx.fillStyle = '#8f9a92';
+      ctx.fillStyle = '#7d857e';
       ctx.fillRect(0, 0, S, S);
-      const t = S / 4, g = Math.max(1.5, S / 128);
-      const pal = [[196, 208, 198], [172, 190, 186], [208, 214, 200], [150, 172, 172], [220, 222, 210]];
-      for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
+      const n = 8, t = S / n, g = Math.max(1, S / 190);
+      const pal = [[168, 180, 168], [146, 164, 158], [182, 188, 172], [128, 150, 148], [196, 198, 184]];
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
           const c = pal[Math.floor(r() * pal.length)];
           ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
           ctx.fillRect(i * t + g, j * t + g, t - 2 * g, t - 2 * g);

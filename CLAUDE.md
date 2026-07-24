@@ -91,12 +91,31 @@ walls, not the model unit's gray-blue.
 - Finishes, cross-checked against the Matterport walkthrough and the owner's photos:
   ceilings are the **exposed slab soffit with a sprayed aggregate finish** (cream,
   heavily stippled — not smooth drywall); casework hardware is **small round satin
-  knobs**, never bar pulls; both tubs are alcove tubs with **tile surrounds** up ~5 ft
-  and painted wall above; the master vanity is a **one-piece cultured-marble top with
-  integral bowls** under a full-width frameless mirror and a multi-globe bar light;
+  knobs**, never bar pulls; doors have **satin levers on round roses**, not knobs;
+  both tubs are alcove tubs with **tile surrounds** up ~5 ft and painted wall above;
   every window has a **roller shade in a dark head pocket**; living and kitchen both
   have **surface-mounted track lighting**; louvered **supply grilles** sit high on the
   walls in every room.
+- Both vanities are the same builder-standard unit: maple doors under a **one-piece
+  cultured-marble top with recessed oval bowls** and an integral splash lip, a
+  full-width frameless mirror, and a multi-globe chrome bar light above it. There is no
+  boolean here, so `deckStrips()` assembles each slab from pieces around the bowl
+  openings and a flat ring closes the rectangular corners — the cabinet body stops at
+  y 2.4 so the bowls have somewhere to hang.
+- Kitchen appliances (model unit): freestanding **gas range** with a stainless
+  backguard carrying the controls and clock, black glass cooktop, cast-iron grates and
+  front knobs; **over-the-range microwave**, stainless with a black glass door and a
+  right-hand keypad; stainless **top-freezer refrigerator** with bar handles on the
+  east stile; dishwasher with a black top control strip. The cabinet run and counter
+  **break either side of the range slot (x 21.4–23.9)** — a continuous slab caps the
+  cooktop.
+- Backsplash differs between units: the owner's is a **band of ~1.5" glass mosaic**
+  above a granite curb (what's modelled); the model unit was re-tiled in full-height
+  gray glass subway. Same for lighting — the owner has one amber pendant plus track,
+  the model unit has two white pendants and a dome.
+- Mirrors are deliberately **dulled** (roughness 0.38, envMapIntensity 0.18). A real
+  mirror needs a second render pass; at metalness 1 / roughness 0 it just samples the
+  sky, so the bathroom mirrors ended up showing the sun.
 - Floors: **dark espresso plank** in living/dining and the hall spine, **carpet** in
   both bedrooms and the walk-in, **porcelain tile** in kitchen, both baths and foyer.
 - Balcony railing is **dark metal pickets at ~4" centres with a flat top rail** — not
