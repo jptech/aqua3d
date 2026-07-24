@@ -29,8 +29,10 @@ approximate, especially the refined one's lower third).
 | `src/furniture.js` | Procedural catalog. Real-world footprints (`w`×`d` ft); flags: `flat` (rugs), `tuck`/`surface` (chairs may overlap tables). |
 | `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles. Has an `enabled` flag other tools toggle. |
 | `src/measure.js` | Two-click measuring tape. |
-| `src/main.js` | Scene/lights/skyline, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence. |
-| `src/textures.js` | Canvas textures: gray-blue carpet, beige tile, speckled granite, maple, tower facades. |
+| `src/main.js` | Scene/lights/skyline, PMREM environment map, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence, adaptive resolution. |
+| `src/textures.js` | Canvas surfaces (carpet, tile, granite, maple/walnut, plaster, concrete, glass tile, linen) each with a real-world tile size + Sobel-derived normal map; equirect sky; contact-shadow blob. |
+| `src/geo.js` | Cached chamfered box geometry, feet-based UV scaling, and `mergeStatic()` (collapses a group to one mesh per material + shadow-flag bucket). |
+| `src/quality.js` | Device-tier detection (low/med/high) and the render-cost knobs every other module reads: pixel ratio, shadow size, normal maps, bevel radius, lamp count, texture size. |
 
 ## Invariants — keep these when editing geometry
 
@@ -44,6 +46,18 @@ approximate, especially the refined one's lower third).
   Bump the version only if saved furniture would now sit inside new walls.
 - Cabinet-door "seams" are hairline boxes (~0.05 ft wide). A fat seam renders as a big
   black panel — size them thin.
+- **The shell and every furniture piece are merged after they're built** (`mergeStatic`),
+  so anything that must stay individually movable, toggleable or animated has to be
+  added *after* the merge, or flagged `userData.noMerge`. Materials are the merge key:
+  give two things the same material and they end up in the same mesh.
+- Textured materials carry `userData.uvFt` (feet per texture tile) and `box()` / `B()`
+  emit UVs in feet to match. A new textured material needs a surface registered in
+  `textures.js`; a plain colour material can skip it.
+- Nothing expensive should be hardcoded — read it from `Q` in `quality.js` so the low
+  tier stays cheap. Test with `?q=low` and `?q=high`; the ◐ button pins a tier and
+  reloads (tiers change how geometry/textures are built, so a live switch isn't possible).
+- `window.AQUA` exposes the renderer, scene, camera and merge stats for console poking
+  (`AQUA.renderer.info.render.calls`).
 
 ## Established floorplan facts (owner-verified; don't regress)
 

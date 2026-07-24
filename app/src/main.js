@@ -6,22 +6,25 @@ import { CATALOG } from './furniture.js';
 import { Interactions } from './interact.js';
 import { MeasureTool } from './measure.js';
 import { pointInPoly } from './plan.js';
-import { skyTexture, towerTexture } from './textures.js';
+import { skyEquirect, towerTexture } from './textures.js';
+import { Q, PINNED, AUTO_TIER, setPin } from './quality.js';
+import { mergeStats } from './geo.js';
 
 const CENTER = new THREE.Vector3(14.2, 0, 20);
 
 // ---------- renderer / scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+const BASE_DPR = Math.min(window.devicePixelRatio || 1, Q.dpr);
+renderer.setPixelRatio(BASE_DPR);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.06;
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xdde7ef, 500, 1500);
+scene.fog = new THREE.Fog(0xd6e0e8, 450, 1500);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.3, 3000);
 camera.position.set(52, 40, 66);
@@ -35,10 +38,18 @@ controls.minDistance = 3;
 controls.maxDistance = 260;
 
 // ---------- environment ----------
+// One procedural equirect sky serves as both the backdrop and, through PMREM, the
+// image-based light that every material reflects. This is the single biggest
+// realism lever here and it costs one prefilter pass at startup: glass, chrome,
+// stainless and polished granite stop looking like flat plastic.
 {
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(1600, 24, 16),
-    new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }));
-  scene.add(sky);
+  const sky = skyEquirect();
+  scene.background = sky;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  scene.environment = pmrem.fromEquirectangular(sky).texture;
+  scene.environmentIntensity = 0.7;
+  pmrem.dispose();
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000),
     new THREE.MeshStandardMaterial({ color: 0x71767c, roughness: 1 }));
@@ -69,20 +80,40 @@ controls.maxDistance = 260;
 }
 
 // ---------- lights ----------
-scene.add(new THREE.HemisphereLight(0xcadfee, 0x8f8574, 0.85));
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+// Env map carries the ambient term, so the fill lights here are much weaker than
+// they'd need to be on their own — the sun stays the only shadow caster.
+// A sky-only ambient turns every shadowed interior surface blue — real rooms are
+// filled by warm bounce off their own walls and floor, which no shadow map here
+// can produce. The neutral ambient below stands in for that bounce.
+scene.add(new THREE.HemisphereLight(0xdbe8f2, 0xb2a894, 0.28));
+scene.add(new THREE.AmbientLight(0xfff1de, 0.22));
+const sun = new THREE.DirectionalLight(0xfff2e0, 3.1);
 sun.position.set(75, 95, -55);
 sun.target.position.copy(CENTER);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -45;
-sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45;
-sun.shadow.camera.bottom = -55;
-sun.shadow.camera.far = 300;
-sun.shadow.bias = -0.0004;
+sun.shadow.mapSize.set(Q.shadowSize, Q.shadowSize);
+// tight frustum: the unit + balcony only span ~32 ft from centre, and every foot
+// of slack here is shadow resolution thrown away
+sun.shadow.camera.left = -34;
+sun.shadow.camera.right = 34;
+sun.shadow.camera.top = 34;
+sun.shadow.camera.bottom = -34;
+sun.shadow.camera.far = 260;
+sun.shadow.bias = -0.0002;
+sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-scene.add(new THREE.AmbientLight(0xfff6e8, 0.25));
+
+// warm interior fill — reads as lamps/downlights and stops rooms away from the
+// glass from going flat. Count is tier-driven; low-end devices get none.
+const LAMPS = [
+  [19.5, 6.6, 7.2], [21.5, 6.6, 18.0], [6.0, 6.6, 8.5],
+  [20.5, 6.6, 35.0], [9.5, 6.4, 36.5],
+];
+for (let i = 0; i < Math.min(Q.lamps, LAMPS.length); i++) {
+  const l = new THREE.PointLight(0xffd8a6, 15, 26, 2);
+  l.position.set(...LAMPS[i]);
+  scene.add(l);
+}
 
 // ---------- apartment ----------
 const world = buildApartment(scene);
@@ -442,6 +473,26 @@ $('#t-labels').onclick = (e) => {
   e.target.classList.toggle('on', on);
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
+
+// ---------- render quality ----------
+// Tier decides how geometry and textures are built, so switching reloads. The
+// saved layout is in localStorage, so nothing is lost.
+const QUALITY_ORDER = ['auto', 'low', 'med', 'high'];
+const qBtn = $('#t-quality');
+function labelQuality() {
+  const name = PINNED === 'auto' ? `Auto · ${AUTO_TIER}` : PINNED;
+  qBtn.textContent = `◐ ${name}`;
+  qBtn.title = `Render quality — currently ${Q.tier}. Click to cycle (reloads).`;
+  qBtn.classList.toggle('on', PINNED !== 'auto');
+}
+labelQuality();
+qBtn.onclick = () => {
+  setPin(QUALITY_ORDER[(QUALITY_ORDER.indexOf(PINNED) + 1) % QUALITY_ORDER.length]);
+  // ?q= outranks the stored pin, so drop it or the button would look inert
+  const url = new URL(location.href);
+  url.searchParams.delete('q');
+  location.replace(url);
+};
 $('#t-plan').onclick = () => setPlan(!planOn);
 $('#t-lock').onclick = () => setLock(!locked);
 $('#t-measure').onclick = () => setMeasure(!measureOn);
@@ -606,10 +657,36 @@ function fitViewport() {
   fitPlanCam(w / h);
   renderer.setSize(w, h);
 }
+
+// Adaptive resolution: the tier presets are a guess, this is the measurement.
+// If the device can't hold ~50fps we render fewer pixels rather than dropping
+// frames; if it has headroom we walk back up to the tier's native ratio.
+const perf = { t: 0, frames: 0, scale: 1, warmup: 1.5 };
+function adaptResolution(dt) {
+  if (perf.warmup > 0) { perf.warmup -= dt; return; }
+  // Frames longer than a quarter second aren't slow rendering, they're the tab
+  // being throttled or the main thread stalling on a rebuild. Counting them
+  // would ratchet the resolution down and never let it back up.
+  if (dt > 0.25 || document.visibilityState !== 'visible') { perf.t = 0; perf.frames = 0; return; }
+  perf.t += dt;
+  perf.frames++;
+  if (perf.t < 1) return;
+  const fps = perf.frames / perf.t;
+  perf.t = 0; perf.frames = 0;
+  let next = perf.scale;
+  if (fps < 48 && perf.scale > 0.6) next = Math.max(0.6, perf.scale - 0.15);
+  else if (fps > 58 && perf.scale < 1) next = Math.min(1, perf.scale + 0.1);
+  if (next !== perf.scale) {
+    perf.scale = next;
+    renderer.setPixelRatio(BASE_DPR * next);
+  }
+}
+
 function tick() {
   requestAnimationFrame(tick);
   fitViewport();
   const dt = clock.getDelta();
+  adaptResolution(dt);
   if (walk.on) {
     const run = walk.keys.has('ShiftLeft') || walk.keys.has('ShiftRight');
     const sp = (run ? 13 : 7.5) * Math.min(dt, 0.05);
@@ -649,3 +726,10 @@ function tick() {
 tick();
 
 window.addEventListener('resize', fitViewport);
+// coming back from a background tab: re-measure from scratch
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { perf.warmup = 1; perf.t = 0; perf.frames = 0; }
+});
+
+// debugging handle: renderer.info.render.calls / .triangles, quality tier, etc.
+window.AQUA = { renderer, scene, camera, controls, world, quality: Q, perf, merge: mergeStats };
