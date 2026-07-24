@@ -65,11 +65,14 @@ export const BALCONY = {
 };
 
 // ---- rooms (floor surfaces + labels) ---------------------------------------
-// floor: 'carpet' | 'tile'
+// floor: 'carpet' | 'tile' | 'wood'
+// Dark espresso plank runs through the living/dining and the hall spine down to
+// the foyer; bedrooms and the walk-in are carpet; kitchen, baths and foyer are
+// porcelain tile (per the tour and the Matterport walkthrough).
 export const ROOMS = [
   { id: 'master',  name: 'Master Bedroom', label: `11'4" × 15'11"`, floor: 'carpet',
     x0: X.wi, z0: Z.ni, x1: X.div0, z1: Z.mS0 },
-  { id: 'living',  name: 'Living & Dining', label: `15'7" × 13'7"`, floor: 'carpet',
+  { id: 'living',  name: 'Living & Dining', label: `15'7" × 13'7"`, floor: 'wood',
     x0: X.div1, z0: Z.ni, x1: X.ei, z1: Z.liS },
   { id: 'kitchen', name: 'Kitchen', label: '', floor: 'tile',
     x0: X.div1, z0: Z.liS, x1: X.ei, z1: Z.ktS1 },
@@ -81,13 +84,13 @@ export const ROOMS = [
     x0: X.wi, z0: Z.suS1, x1: SUITE.ba1E, z1: Z.ba1S0 },
   { id: 'smcloset', name: '', label: '', floor: 'tile',
     x0: SUITE.chaseX1, z0: Z.suS1, x1: X.div0, z1: 25.65 },
-  { id: 'hall2',   name: '', label: '', floor: 'tile',
+  { id: 'hall2',   name: '', label: '', floor: 'wood',
     x0: X.div1, z0: Z.ktS1, x1: 16.55, z1: Z.b2N1 },
   { id: 'bath2',   name: 'Bath', label: '', floor: 'tile',
     x0: 16.9, z0: Z.ktS1, x1: X.ei, z1: Z.b2N0 },
-  { id: 'foyerN',  name: '', label: '', floor: 'tile',
+  { id: 'foyerN',  name: '', label: '', floor: 'wood',
     x0: SUITE.chaseX1, z0: SUITE.divEnd, x1: X.div1, z1: Z.ba1S1 },
-  { id: 'foyerNE', name: '', label: '', floor: 'tile',
+  { id: 'foyerNE', name: '', label: '', floor: 'wood',
     x0: X.div1, z0: Z.b2N1, x1: 13.21, z1: Z.ba1S1 },
   { id: 'foyer',   name: 'Foyer', label: '', floor: 'tile',
     x0: X.wi, z0: Z.ba1S1, x1: 13.21, z1: Z.b2S0 },
@@ -98,7 +101,7 @@ export const ROOMS = [
   // door/opening thresholds (floor continuity through walls)
   { id: 'th-pass',   name: '', label: '', floor: 'carpet',
     x0: SUITE.passX0, z0: Z.mS0, x1: SUITE.passX1, z1: Z.mS1 },
-  { id: 'th-mdoor',  name: '', label: '', floor: 'carpet',
+  { id: 'th-mdoor',  name: '', label: '', floor: 'wood',
     x0: X.div0, z0: SUITE.mDoor0, x1: X.div1, z1: SUITE.mDoor1 },
   { id: 'th-walkin', name: '', label: '', floor: 'carpet',
     x0: SUITE.clW0, z0: 18.8, x1: SUITE.clW1, z1: 21.2 },
@@ -112,7 +115,7 @@ export const ROOMS = [
     x0: 13.21, z0: 36.0, x1: 13.61, z1: 38.5 },
   { id: 'th-wd',     name: '', label: '', floor: 'tile',
     x0: 5.7, z0: 33.6, x1: 6.05, z1: 38.6 },
-  { id: 'th-sgd',    name: '', label: '', floor: 'tile',
+  { id: 'th-sgd',    name: '', label: '', floor: 'wood',
     x0: 21.6, z0: Z.n0, x1: 24.6, z1: Z.ni },
 ];
 

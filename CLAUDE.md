@@ -7,6 +7,13 @@ Used to plan furniture layouts at true scale. Source of truth for the architectu
 walking the unit, which override anything read from the images** (the drawings are
 approximate, especially the refined one's lower third).
 
+A Matterport scan of the **two-bedroom model unit** is at
+<https://my.matterport.com/show/?m=Z3EsnDJkQsd>. It is the same floorplan and the
+same building shell, so it is good evidence for **layout and architectural detail**
+— but it has been restaged and repainted, so it is *not* evidence for this unit's
+finishes. Where they disagree, the owner's photos win: this unit has warm beige
+walls, not the model unit's gray-blue.
+
 ## Run / verify
 
 - No build step, no node needed: `python -m http.server 8123 --directory Z:/aqua3d/app`,
@@ -81,6 +88,19 @@ approximate, especially the refined one's lower third).
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
 - Bath 2: the east face is a **solid wall** (no glazing) — the tub sits against it.
+- Finishes, cross-checked against the Matterport walkthrough and the owner's photos:
+  ceilings are the **exposed slab soffit with a sprayed aggregate finish** (cream,
+  heavily stippled — not smooth drywall); casework hardware is **small round satin
+  knobs**, never bar pulls; both tubs are alcove tubs with **tile surrounds** up ~5 ft
+  and painted wall above; the master vanity is a **one-piece cultured-marble top with
+  integral bowls** under a full-width frameless mirror and a multi-globe bar light;
+  every window has a **roller shade in a dark head pocket**; living and kitchen both
+  have **surface-mounted track lighting**; louvered **supply grilles** sit high on the
+  walls in every room.
+- Floors: **dark espresso plank** in living/dining and the hall spine, **carpet** in
+  both bedrooms and the walk-in, **porcelain tile** in kitchen, both baths and foyer.
+- Balcony railing is **dark metal pickets at ~4" centres with a flat top rail** — not
+  glass. Both the tour photos and the Matterport scan show this.
 - Balcony: the plan's 17'11" × 23'2" are the curved slab's **overall bounding box** —
   it starts at the sliding door (x≈15.5), bulges ~4 ft past the north face and ~5 ft
   past the east face, and rejoins the facade at the chase column (z≈19). It does

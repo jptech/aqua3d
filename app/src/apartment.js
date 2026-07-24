@@ -14,19 +14,26 @@ function initMaterials() {
   M.plaster = TEX.surfaceMaterial('plaster', { roughness: 0.9, normalScale: 0.3 });
   M.plasterExt = TEX.surfaceMaterial('plasterExt', { roughness: 0.85, normalScale: 0.3 });
   M.white = new THREE.MeshStandardMaterial({ color: 0xf6f4f0, roughness: 0.85 });
+  // exposed slab soffit, sprayed aggregate — Aqua leaves this unfinished
+  M.ceiling = TEX.surfaceMaterial('sprayCeiling', {
+    roughness: 0.97, normalScale: 0.9, envMapIntensity: 0.6,
+  });
+  M.wood = TEX.surfaceMaterial('plank', {
+    roughness: 0.34, normalScale: 0.45, envMapIntensity: 0.55,
+  });
   M.trim = new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 0.42 });   // painted baseboard/casing
   M.concrete = TEX.surfaceMaterial('concrete', { color: 0xeceae4, roughness: 0.82, normalScale: 0.4 });
   M.carpet = TEX.surfaceMaterial('carpet', { roughness: 1, normalScale: 0.85 });
-  M.tile = TEX.surfaceMaterial('tile', { roughness: 0.42, normalScale: 0.7, envMapIntensity: 0.7 });
+  // matte porcelain: a glossy tile picks up the whole sky and turns blue
+  M.tile = TEX.surfaceMaterial('tile', { roughness: 0.58, normalScale: 0.7, envMapIntensity: 0.35 });
   M.frame = new THREE.MeshStandardMaterial({ color: 0x2c2e30, roughness: 0.42, metalness: 0.55 });
   M.glass = new THREE.MeshPhysicalMaterial({
     color: 0xa8c2d2, transparent: true, opacity: 0.2, roughness: 0.03,
     metalness: 0, side: THREE.DoubleSide, depthWrite: false,
     envMapIntensity: 1.5, ior: 1.5, reflectivity: 0.6,
   });
-  M.railGlass = new THREE.MeshPhysicalMaterial({
-    color: 0xcfe0e8, transparent: true, opacity: 0.3, roughness: 0.02,
-    side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.4, reflectivity: 0.5,
+  M.railMetal = new THREE.MeshStandardMaterial({
+    color: 0x2a2c2e, roughness: 0.45, metalness: 0.7, envMapIntensity: 0.8,
   });
   M.maple = TEX.surfaceMaterial('maple', { roughness: 0.42, normalScale: 0.5, envMapIntensity: 0.7 });
   M.granite = TEX.surfaceMaterial('granite', {
@@ -39,7 +46,13 @@ function initMaterials() {
   });
   M.blackAppliance = new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.32, metalness: 0.4 });
   M.porcelain = new THREE.MeshStandardMaterial({ color: 0xf8f7f4, roughness: 0.12, envMapIntensity: 0.9 });
+  // one-piece cultured-marble vanity top with integral bowls
+  M.marble = new THREE.MeshStandardMaterial({ color: 0xf1ece1, roughness: 0.2, envMapIntensity: 0.8 });
   M.chrome = new THREE.MeshStandardMaterial({ color: 0xdde2e5, roughness: 0.1, metalness: 1 });
+  // satin nickel for cabinet knobs — polished chrome at this size reads as beads
+  M.nickel = new THREE.MeshStandardMaterial({
+    color: 0xb5babe, roughness: 0.34, metalness: 0.85, envMapIntensity: 0.7,
+  });
   M.doorSlab = new THREE.MeshStandardMaterial({ color: 0xf4f0e8, roughness: 0.5 });
   M.entryDoor = TEX.surfaceMaterial('walnut', { roughness: 0.45, normalScale: 0.5, envMapIntensity: 0.8 });
   M.wire = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.45, metalness: 0.4 });
@@ -47,6 +60,8 @@ function initMaterials() {
   M.tileWall = TEX.surfaceMaterial('glassTile', {
     roughness: 0.12, metalness: 0.1, normalScale: 0.5, envMapIntensity: 1.2,
   });
+  M.shadeCloth = new THREE.MeshStandardMaterial({ color: 0xe4dccb, roughness: 0.9 });
+  M.louver = new THREE.MeshStandardMaterial({ color: 0x9aa0a4, roughness: 0.6, metalness: 0.3 });
   M.lens = new THREE.MeshStandardMaterial({
     color: 0xfff6e4, roughness: 0.6, emissive: 0xffe6bb, emissiveIntensity: 0.9,
   });
@@ -117,6 +132,7 @@ function glazing(parent, r, { mullionEvery = Q.mullionEvery, register = true } =
     : box(tc0, 0.3, a0, tc1, H - 0.35, a1, M.glass);
   glass.castShadow = false;
   parent.add(glass);
+  shade(parent, r, alongX);
   if (register) { if (alongX) reg(a0, t0, a1, t1, 'glazing'); else reg(t0, a0, t1, a1, 'glazing'); }
 }
 
@@ -175,30 +191,82 @@ function toilet(parent, cx, cz, rotY) {
   parent.add(g);
 }
 
-function bathtub(parent, x0, z0, x1, z1) {
+// `tiled` lists the sides that get a tile surround ('w','e','n','s'). Both tubs
+// here are alcove tubs with tile running up ~5 ft and painted wall above.
+function bathtub(parent, x0, z0, x1, z1, tiled = '') {
   const g = new THREE.Group();
   g.add(box(x0, 0, z0, x1, 1.55, z1, M.porcelain));
   g.add(box(x0 + 0.3, 1.0, z0 + 0.3, x1 - 0.3, 1.62, z1 - 0.3,
     new THREE.MeshStandardMaterial({ color: 0xe4e2dc, roughness: 0.3 })));
+  const Y0 = 1.4, Y1 = 6.35, T = 0.2;      // T overlaps into the wall behind
+  if (tiled.includes('w')) g.add(box(x0 - T, Y0, z0, x0, Y1, z1, M.tile));
+  if (tiled.includes('e')) g.add(box(x1, Y0, z0, x1 + T, Y1, z1, M.tile));
+  if (tiled.includes('n')) g.add(box(x0, Y0, z0 - T, x1, Y1, z0, M.tile));
+  if (tiled.includes('s')) g.add(box(x0, Y0, z1, x1, Y1, z1 + T, M.tile));
+  // curved shower rod + curtain bunched at one end
+  const alongX = (x1 - x0) > (z1 - z0);
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const rod = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, (alongX ? x1 - x0 : z1 - z0) - 0.1, 8), M.chrome);
+  if (alongX) rod.rotation.z = Math.PI / 2; else rod.rotation.x = Math.PI / 2;
+  rod.position.set(cx, 6.1, cz);
+  g.add(rod);
   parent.add(g);
   reg(x0, z0, x1, z1, 'fixture');
 }
 
+// Builder-standard vanity: maple doors with round knobs under a one-piece
+// cultured-marble top with integral bowls (not a granite slab), a frameless
+// mirror running the full cabinet width, and a multi-globe bar light above it.
 function vanity(parent, { x0, z0, x1, z1, sinks, mirrorWall }) {
   parent.add(box(x0, 0, z0, x1, 2.7, z1, M.maple));
-  parent.add(box(x0 - 0.06, 2.7, z0 - 0.06, x1 + 0.06, 2.88, z1 + 0.06, M.granite));
+  parent.add(box(x0 - 0.06, 2.7, z0 - 0.06, x1 + 0.06, 2.9, z1 + 0.06, M.marble));
+  const alongZ = (z1 - z0) > (x1 - x0);
+  // door knobs along the front face
+  const n = Math.max(2, Math.round((alongZ ? z1 - z0 : x1 - x0) / 1.7));
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    if (alongZ) knob(parent, mirrorWall === 'e' ? x0 + 0.1 : x1 - 0.1, 2.35,
+      z0 + (z1 - z0) * t, 'x', mirrorWall === 'e' ? -1 : 1);
+    else knob(parent, x0 + (x1 - x0) * t, 2.35, z1 - 0.1, 'z', 1);
+  }
   for (const [sx, sz] of sinks) {
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.25, 20), M.porcelain);
-    s.scale.z = 0.75;
-    s.position.set(sx, 2.92, sz);
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.42, 0.22, 20), M.marble);
+    s.scale.z = 0.78;
+    s.position.set(sx, 2.85, sz);
     parent.add(s);
-    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.75, 10), M.chrome);
-    f.position.set(sx + (mirrorWall === 'e' ? 0.55 : 0), 3.2, sz + (mirrorWall === 'n' ? -0.5 : 0));
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.72, 10), M.chrome);
+    f.position.set(sx + (mirrorWall === 'e' ? 0.62 : 0), 3.2, sz + (mirrorWall === 'n' ? -0.58 : 0));
     parent.add(f);
   }
-  if (mirrorWall === 'e') parent.add(box(x1 + 0.08, 3.4, z0 + 0.2, x1 + 0.14, 7.2, z1 - 0.2, M.mirror));
-  if (mirrorWall === 'n') parent.add(box(x0 + 0.2, 3.4, z0 - 0.14, x1 - 0.2, 7.2, z0 - 0.08, M.mirror));
+  // full-width mirror + bar light
+  const MY0 = 3.0, MY1 = 7.5;
+  if (mirrorWall === 'e') {
+    parent.add(box(x1 + 0.06, MY0, z0, x1 + 0.11, MY1, z1, M.mirror));
+    barLight(parent, x1 - 0.05, MY1 + 0.45, (z0 + z1) / 2, z1 - z0 - 0.8, 'z');
+  }
+  if (mirrorWall === 'n') {
+    parent.add(box(x0, MY0, z0 - 0.11, x1, MY1, z0 - 0.06, M.mirror));
+    barLight(parent, (x0 + x1) / 2, MY1 + 0.45, z0 - 0.05, x1 - x0 - 0.5, 'x');
+  }
   reg(x0, z0, x1, z1, 'fixture');
+}
+
+// Chrome rod with frosted globes, mounted over a bathroom mirror.
+function barLight(parent, x, y, z, len, dir) {
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len, 8), M.chrome);
+  if (dir === 'x') rod.rotation.z = Math.PI / 2; else rod.rotation.x = Math.PI / 2;
+  rod.position.set(x, y, z);
+  parent.add(rod);
+  const count = Math.max(2, Math.round(len / 1.15));
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : i / (count - 1);
+    const o = (t - 0.5) * (len - 0.5);
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), M.lens);
+    globe.scale.y = 0.85;
+    globe.position.set(x + (dir === 'x' ? o : 0), y - 0.34, z + (dir === 'z' ? o : 0));
+    parent.add(globe);
+  }
 }
 
 function wireShelf(parent, x0, z0, x1, z1, y) {
@@ -209,6 +277,36 @@ function wireShelf(parent, x0, z0, x1, z1, y) {
   if (alongX) rod.rotation.z = Math.PI / 2; else rod.rotation.x = Math.PI / 2;
   rod.position.set((x0 + x1) / 2, y - 0.28, (z0 + z1) / 2);
   parent.add(rod);
+}
+
+// Louvered supply grille, high on a wall. Small, but they're in nearly every
+// photo of this unit and their absence is part of what reads as "CG".
+// `axis`/`sign` give the face the grille sits on.
+function vent(g, x, y, z, w, axis = 'z', sign = 1) {
+  const h = 0.5, n = 4, step = (h - 0.12) / n;
+  const span = (v, d) => (sign > 0 ? [v, v + d] : [v - d, v]);   // keep box() extents positive
+  const [p0, p1] = axis === 'z' ? span(z, 0.05) : span(x, 0.05);
+  g.add(axis === 'z'
+    ? box(x - w / 2, y - h / 2, p0, x + w / 2, y + h / 2, p1, M.trim)
+    : box(p0, y - h / 2, z - w / 2, p1, y + h / 2, z + w / 2, M.trim));
+  const [s0, s1] = span(sign > 0 ? p1 : p0, 0.018);
+  for (let i = 0; i < n; i++) {
+    const yy = y - h / 2 + 0.07 + i * step;
+    g.add(axis === 'z'
+      ? box(x - w / 2 + 0.05, yy, s0, x + w / 2 - 0.05, yy + 0.028, s1, M.louver)
+      : box(s0, yy, z - w / 2 + 0.05, s1, yy + 0.028, z + w / 2 - 0.05, M.louver));
+  }
+}
+
+// Roller shade in a recessed head pocket, drawn rolled up. Every window in the
+// unit has one; the dark pocket band is a big part of how the glazing reads.
+function shade(parent, r, alongX) {
+  const a0 = alongX ? r.x0 : r.z0, a1 = alongX ? r.x1 : r.z1;
+  const c = alongX ? (r.z0 + r.z1) / 2 : (r.x0 + r.x1) / 2;
+  const y1 = H - 0.4, y0 = y1 - 0.95;
+  parent.add(alongX
+    ? box(a0, y0, c - 0.16, a1, y1, c + 0.16, M.shadeCloth)
+    : box(c - 0.16, y0, a0, c + 0.16, y1, a1, M.shadeCloth));
 }
 
 // Flush LED cans. Only visible with the ceiling on (walk mode), where a blank
@@ -234,12 +332,19 @@ function buildCeilingFixtures(ceil) {
   }
 }
 
-// Bar pull on a cabinet face; `dir` is the axis the bar runs along.
-function pull(g, x, y, z, len, dir = 'x') {
-  const t = 0.05;
-  g.add(dir === 'x'
-    ? box(x - len / 2, y - t, z - t, x + len / 2, y + t, z + t, M.chrome)
-    : box(x - t, y - t, z - len / 2, x + t, y + t, z + len / 2, M.chrome));
+// Round cabinet knob — what's actually on the maple casework here, not the bar
+// pulls a modern kitchen would suggest. `face` is the outward axis.
+function knob(g, x, y, z, axis = 'z', sign = 1) {
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.08, 8), M.nickel);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.nickel);
+  head.scale.y = 0.7;                                     // squashed along the stem
+  for (const part of [stem, head]) {
+    if (axis === 'z') part.rotation.x = Math.PI / 2; else part.rotation.z = Math.PI / 2;
+  }
+  stem.position.set(x, y, z);
+  head.position.set(
+    x + (axis === 'x' ? sign * 0.065 : 0), y, z + (axis === 'z' ? sign * 0.065 : 0));
+  g.add(stem, head);
 }
 
 function buildKitchen(g) {
@@ -254,7 +359,10 @@ function buildKitchen(g) {
     g.add(box(px0 + 0.4 + i * 1.05, 0.35, 16.45, px0 + 0.45 + i * 1.05, 2.8, 16.47, M.frame));
   }
   g.add(box(22.1, 0.35, 16.45, 22.15, 2.8, 16.47, M.frame));
-  for (const px of [16.9, 20.2, 21.4, 23.0, 24.1]) pull(g, px, 2.62, 16.53, 0.8);
+  for (const px of [16.9, 20.0, 21.0, 22.4, 23.4, 24.3]) {
+    knob(g, px, 2.66, 16.5, 'z', 1);          // drawer
+    knob(g, px, 2.15, 16.5, 'z', 1);          // door below, knob near its top rail
+  }
   // dishwasher
   g.add(box(17.55, 0.12, 14.6, 19.45, 2.95, 16.5, M.stainless));
   g.add(box(17.6, 2.6, 16.5, 19.4, 2.9, 16.55, M.blackAppliance));
@@ -287,8 +395,11 @@ function buildKitchen(g) {
     g.add(box(19.7 + i * 1.35, 0.35, 20.33, 19.75 + i * 1.35, 2.8, 20.35, M.frame));
   }
   g.add(box(24.4, 0.35, 20.33, 24.45, 2.8, 20.35, M.frame));
-  for (const px of [19.9, 20.9, 24.35, 25.05]) pull(g, px, 2.62, 20.27, 0.8);
-  for (const px of [20.2, 21.0, 24.35, 25.05]) pull(g, px, 4.85, 21.28, 0.7);   // uppers
+  for (const px of [19.9, 20.9, 24.35, 25.05]) {
+    knob(g, px, 2.66, 20.3, 'z', -1);
+    knob(g, px, 2.15, 20.3, 'z', -1);
+  }
+  for (const px of [20.2, 21.0, 24.35, 25.05]) knob(g, px, 4.85, 21.3, 'z', -1);   // uppers
   // fridge
   g.add(box(16.45, 0, 19.8, 19.25, 5.9, 22.2, M.stainless));
   g.add(box(16.5, 3.62, 19.78, 19.2, 3.68, 19.8, M.blackAppliance));
@@ -333,7 +444,7 @@ function buildKitchen(g) {
 
 function buildBaths(g) {
   // master bath (x 0.55-8.9, z 23.25-32.3), entered from the suite passage
-  bathtub(g, 0.7, 27.15, 3.2, 32.15);                                       // tub, SW corner
+  bathtub(g, 0.7, 27.15, 3.2, 32.15, 'ws');                                 // tub, SW corner
   vanity(g, { x0: 7.0, z0: 23.6, x1: 8.84, z1: 28.6, sinks: [[7.95, 24.9], [7.95, 27.3]], mirrorWall: 'e' });
   toilet(g, 7.55, 31.15, -Math.PI / 2);                                     // tank at east chase, faces west
   WALL_RECTS.push({ x0: 6.3, z0: 30.4, x1: 8.8, z1: 31.9, kind: 'fixture' });
@@ -342,7 +453,7 @@ function buildBaths(g) {
   vanity(g, { x0: 17.3, z0: 22.75, x1: 20.8, z1: 24.65, sinks: [[19.05, 23.6]], mirrorWall: 'n' });
   toilet(g, 22.15, 23.4, 0);                                                // tank north, faces south
   WALL_RECTS.push({ x0: 21.4, z0: 22.75, x1: 22.9, z1: 24.5, kind: 'fixture' });
-  bathtub(g, 25.3, 23.7, 27.8, 28.7);                                       // tub against the east wall
+  bathtub(g, 25.3, 23.7, 27.8, 28.7, 'e');                                  // tub against the east wall
 }
 
 function buildClosets(g) {
@@ -434,31 +545,37 @@ function buildBalcony(g, ceil) {
   roof.castShadow = true;
   ceil.add(roof);
 
-  // glass railing along the outer curve
+  // Dark metal picket railing along the outer curve. The tour and the Matterport
+  // walkthrough both show closely spaced vertical bars with a flat top rail —
+  // not the frameless glass a modern tower usually implies.
   const rail = new THREE.Group();
-  const verts = [], idx = [];
-  for (let i = 0; i < pts.length; i++) {
-    const [x, z] = pts[i];
-    verts.push(x, 0.15, z, x, 3.35, z);
-    if (i > 0) {
-      const a = (i - 1) * 2;
-      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
+  const curve3 = new THREE.CatmullRomCurve3(
+    pts.map(([x, z]) => new THREE.Vector3(x, 0, z)));
+  const railTube = (y, r) => new THREE.Mesh(
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, y, z))),
+      pts.length, r, 6), M.railMetal);
+  rail.add(railTube(3.45, 0.1));       // top rail
+  rail.add(railTube(0.35, 0.06));      // bottom rail
+  // pickets at ~4" centres, which is what code requires and what the photos show
+  const total = curve3.getLength();
+  const count = Math.round(total / (Q.tier === 'low' ? 0.52 : 0.34));
+  const pk = boxGeometry(0.055, 3.1, 0.055, 0, 0);
+  for (let i = 0; i <= count; i++) {
+    const p = curve3.getPointAt(i / count);
+    const bar = new THREE.Mesh(pk, M.railMetal);
+    bar.position.set(p.x, 1.9, p.z);
+    bar.castShadow = true;
+    rail.add(bar);
   }
-  const glassGeo = new THREE.BufferGeometry();
-  glassGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  glassGeo.setIndex(idx);
-  glassGeo.computeVertexNormals();
-  rail.add(new THREE.Mesh(glassGeo, M.railGlass));
-  const railTube = new THREE.TubeGeometry(
-    new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 3.45, z))), 70, 0.09, 8);
-  rail.add(new THREE.Mesh(railTube, M.frame));
   for (let i = 0; i < pts.length; i += 7) {
     const [x, z] = pts[i];
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.3, 8), M.frame);
-    post.position.set(x, 1.7, z);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 3.4, 8), M.railMetal);
+    post.position.set(x, 1.75, z);
+    post.castShadow = true;
     rail.add(post);
   }
+  mergeStatic(rail);      // ~280 pickets collapse to one mesh
   g.add(rail);
 
   return [...pts, [X.e1, BALCONY.eEndZ], [X.e1, 0]];
@@ -481,14 +598,16 @@ export function buildApartment(scene) {
     if (w <= 0 || d <= 0) continue;
     // one shared carpet/tile material for the whole unit; scale is carried in the
     // UVs (feet) so all floors merge into two draw calls
-    const mat = r.floor === 'carpet' ? M.carpet : M.tile;
+    const mat = r.floor === 'carpet' ? M.carpet : r.floor === 'wood' ? M.wood : M.tile;
     const f = new THREE.Mesh(
       uvFeet(new THREE.PlaneGeometry(w, d), w / mat.userData.uvFt, d / mat.userData.uvFt), mat);
     f.rotation.x = -Math.PI / 2;
     f.position.set((r.x0 + r.x1) / 2, 0.01, (r.z0 + r.z1) / 2);
     f.receiveShadow = true;
     interior.add(f);
-    const c = new THREE.Mesh(new THREE.PlaneGeometry(w, d), M.white);
+    const c = new THREE.Mesh(
+      uvFeet(new THREE.PlaneGeometry(w, d), w / M.ceiling.userData.uvFt, d / M.ceiling.userData.uvFt),
+      M.ceiling);
     c.rotation.x = Math.PI / 2;
     c.position.set((r.x0 + r.x1) / 2, H, (r.z0 + r.z1) / 2);
     ceilingGroup.add(c);
@@ -538,6 +657,7 @@ export function buildApartment(scene) {
     for (const [s0, s1] of [[19.0, 19.15], [16.15, 16.3], [21.45, 21.6]]) {        // panel stiles
       fr.add(box(s0, 0.3, Z.n0 + 0.04, s1, H - 0.35, Z.n0 + 0.46, M.frame));
     }
+    shade(fr, { x0: 13.7, z0: Z.n0, x1: 24.6, z1: Z.ni }, true);
     reg(13.7, Z.n0, 21.6, Z.ni, 'glazing'); // panels block; x 21.6-24.6 open to balcony
   }
   wall(sides.N, { x0: 24.6, z0: Z.n0, x1: X.e1, z1: Z.ni }, [], M.plasterExt);
@@ -608,6 +728,26 @@ export function buildApartment(scene) {
   wall(interior, { x0: 25.7, z0: Z.b2N1, x1: X.ei, z1: 32.1 });
 
   // ---------- fixtures, doors, balcony ----------
+  // supply grilles, high on the wall — [x, y, z, width, axis, facing]
+  for (const v of [
+    [X.div1, 7.8, 6.2, 0.95, 'x', 1],       // living, off the divider
+    [X.ei, 7.8, 14.8, 0.8, 'x', -1],        // kitchen, countertop column back
+    [X.wi, 7.8, 5.5, 0.95, 'x', 1],         // master
+    [20.0, 7.8, Z.b2N1, 0.95, 'z', 1],      // bedroom 2
+    [16.9, 7.5, 26.5, 0.7, 'x', 1],         // bath 2
+    [X.wi, 7.5, 25.5, 0.7, 'x', 1],         // master bath
+    [13.21, 7.8, 35.0, 0.8, 'x', 1],        // foyer
+  ]) vent(interior, v[0], v[1], v[2], v[3], v[4], v[5]);
+
+  // living-room track light, matching the kitchen's
+  interior.add(box(14.5, H - 0.15, 4.6, 24.0, H - 0.05, 4.75, M.frame));
+  for (let i = 0; i < 5; i++) {
+    const spot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 0.4, 10), M.frame);
+    spot.position.set(15.4 + i * 1.9, H - 0.4, 4.68);
+    spot.rotation.x = -0.5;
+    interior.add(spot);
+  }
+
   buildKitchen(interior);
   buildBaths(interior);
   buildClosets(interior);

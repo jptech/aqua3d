@@ -105,20 +105,16 @@ const SURFACES = {
           const tone = 210 + Math.floor(r() * 12);
           ctx.fillStyle = `rgb(${tone},${tone - 12},${tone - 38})`;
           ctx.fillRect(i * t + g, j * t + g, t - 2 * g, t - 2 * g);
-          // clouded ceramic face — keep it faint, heavy mottling reads as dirt
-          for (let k = 0; k < 26; k++) {
-            const grad = ctx.createRadialGradient(
-              i * t + r() * t, j * t + r() * t, 0,
-              i * t + r() * t, j * t + r() * t, t * (0.1 + r() * 0.3));
-            grad.addColorStop(0, r() > 0.5 ? 'rgba(255,250,238,0.10)' : 'rgba(168,148,116,0.07)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(i * t + g, j * t + g, t - 2 * g, t - 2 * g);
-            ctx.clip();
-            ctx.fillStyle = grad;
-            ctx.fillRect(i * t, j * t, t, t);
-            ctx.restore();
+          // Fine sand-grain speckle only. Radial "clouding" here produced a
+          // four-point starburst that repeated identically in every tile —
+          // far more distracting than the flat colour it was meant to break up.
+          const face = t - 2 * g;
+          for (let k = 0; k < face * face * 0.09; k++) {
+            const v = r();
+            const c = v > 0.5 ? 252 : 168;
+            ctx.fillStyle = `rgba(${c},${c - 8},${c - 26},${0.05 + r() * 0.12})`;
+            const s = (0.8 + r() * 1.8) * (S / 256);
+            ctx.fillRect(i * t + g + r() * face, j * t + g + r() * face, s, s);
           }
         }
       }
@@ -156,9 +152,66 @@ const SURFACES = {
     ft: 2.6, size: 1, bump: 0.7,
     draw(ctx, S, r) { woodGrain(ctx, S, r, '#c9a878', [150, 112, 68], [70, 50, 32], 70); },
   },
+  // Living/dining/hall: dark espresso wide plank, boards running north-south.
+  plank: {
+    ft: 4, size: 2, bump: 0.5,
+    draw(ctx, S, r) {
+      const cols = 9;                       // 4 ft / 9 boards = 5.3" wide
+      const bw = S / cols;
+      ctx.fillStyle = '#2a1d14';            // seam colour showing through
+      ctx.fillRect(0, 0, S, S);
+      for (let c = 0; c < cols; c++) {
+        // staggered end joints down each column
+        let y = -r() * S;
+        while (y < S) {
+          const len = S * (0.55 + r() * 0.75);
+          const tone = 58 + r() * 26;
+          ctx.fillStyle = `rgb(${tone + 12},${tone - 6},${tone - 18})`;
+          ctx.fillRect(c * bw + 1.2, y + 1.2, bw - 2.4, len - 2.4);
+          // grain along the board
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(c * bw + 1.2, y + 1.2, bw - 2.4, len - 2.4);
+          ctx.clip();
+          for (let g = 0; g < 22; g++) {
+            const gx = c * bw + r() * bw;
+            ctx.strokeStyle = `rgba(${r() > 0.5 ? 130 : 26},${r() > 0.5 ? 96 : 18},${r() > 0.5 ? 62 : 12},${0.06 + r() * 0.16})`;
+            ctx.lineWidth = 0.7 + r() * 2.2;
+            ctx.beginPath();
+            ctx.moveTo(gx, y);
+            ctx.bezierCurveTo(gx + (r() - 0.5) * 7, y + len * 0.35,
+              gx + (r() - 0.5) * 7, y + len * 0.7, gx + (r() - 0.5) * 5, y + len);
+            ctx.stroke();
+          }
+          ctx.restore();
+          y += len;
+        }
+      }
+    },
+  },
+  // Aqua leaves the slab soffit exposed with a sprayed aggregate finish - the
+  // single most recognisable thing about the interiors, and nothing like the
+  // smooth drywall ceiling a generic model assumes.
+  sprayCeiling: {
+    ft: 3, size: 1, bump: 1.8,
+    draw(ctx, S, r) {
+      ctx.fillStyle = '#efe9da';
+      ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < S * S * 0.5; i++) {
+        const v = r();
+        const c = v > 0.55 ? 255 : (v > 0.2 ? 196 : 150);
+        ctx.fillStyle = `rgba(${c},${c - 6},${c - 18},${0.25 + r() * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(r() * S, r() * S, (0.9 + r() * r() * 3.4) * (S / 256), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+  // Warm beige, per the owner's own photos (the Matterport model unit has been
+  // repainted gray-blue - that's staging, not the building's finish).
   plaster: {
     ft: 7, size: 1, bump: 0.3,
-    draw(ctx, S, r) { orangePeel(ctx, S, r, '#f1ece1'); },
+    draw(ctx, S, r) { orangePeel(ctx, S, r, '#e7dcc5'); },
   },
   plasterExt: {
     ft: 9, size: 1, bump: 0.28,
