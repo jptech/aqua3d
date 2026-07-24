@@ -6,22 +6,25 @@ import { CATALOG } from './furniture.js';
 import { Interactions } from './interact.js';
 import { MeasureTool } from './measure.js';
 import { pointInPoly } from './plan.js';
-import { skyTexture, towerTexture } from './textures.js';
+import { skyEquirect, towerTexture } from './textures.js';
+import { Q, PINNED, AUTO_TIER, setPin } from './quality.js';
+import { mergeStats } from './geo.js';
 
 const CENTER = new THREE.Vector3(14.2, 0, 20);
 
 // ---------- renderer / scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+const BASE_DPR = Math.min(window.devicePixelRatio || 1, Q.dpr);
+renderer.setPixelRatio(BASE_DPR);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.06;
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xdde7ef, 500, 1500);
+scene.fog = new THREE.Fog(0xd6e0e8, 450, 1500);
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.3, 3000);
 camera.position.set(52, 40, 66);
@@ -35,10 +38,18 @@ controls.minDistance = 3;
 controls.maxDistance = 260;
 
 // ---------- environment ----------
+// One procedural equirect sky serves as both the backdrop and, through PMREM, the
+// image-based light that every material reflects. This is the single biggest
+// realism lever here and it costs one prefilter pass at startup: glass, chrome,
+// stainless and polished granite stop looking like flat plastic.
 {
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(1600, 24, 16),
-    new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }));
-  scene.add(sky);
+  const sky = skyEquirect();
+  scene.background = sky;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  scene.environment = pmrem.fromEquirectangular(sky).texture;
+  scene.environmentIntensity = 0.7;
+  pmrem.dispose();
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000),
     new THREE.MeshStandardMaterial({ color: 0x71767c, roughness: 1 }));
@@ -69,20 +80,40 @@ controls.maxDistance = 260;
 }
 
 // ---------- lights ----------
-scene.add(new THREE.HemisphereLight(0xcadfee, 0x8f8574, 0.85));
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+// Env map carries the ambient term, so the fill lights here are much weaker than
+// they'd need to be on their own — the sun stays the only shadow caster.
+// A sky-only ambient turns every shadowed interior surface blue — real rooms are
+// filled by warm bounce off their own walls and floor, which no shadow map here
+// can produce. The neutral ambient below stands in for that bounce.
+scene.add(new THREE.HemisphereLight(0xdbe8f2, 0xb2a894, 0.28));
+scene.add(new THREE.AmbientLight(0xfff1de, 0.22));
+const sun = new THREE.DirectionalLight(0xfff2e0, 3.1);
 sun.position.set(75, 95, -55);
 sun.target.position.copy(CENTER);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -45;
-sun.shadow.camera.right = 45;
-sun.shadow.camera.top = 45;
-sun.shadow.camera.bottom = -55;
-sun.shadow.camera.far = 300;
-sun.shadow.bias = -0.0004;
+sun.shadow.mapSize.set(Q.shadowSize, Q.shadowSize);
+// tight frustum: the unit + balcony only span ~32 ft from centre, and every foot
+// of slack here is shadow resolution thrown away
+sun.shadow.camera.left = -34;
+sun.shadow.camera.right = 34;
+sun.shadow.camera.top = 34;
+sun.shadow.camera.bottom = -34;
+sun.shadow.camera.far = 260;
+sun.shadow.bias = -0.0002;
+sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
-scene.add(new THREE.AmbientLight(0xfff6e8, 0.25));
+
+// warm interior fill — reads as lamps/downlights and stops rooms away from the
+// glass from going flat. Count is tier-driven; low-end devices get none.
+const LAMPS = [
+  [19.5, 6.6, 7.2], [21.5, 6.6, 18.0], [6.0, 6.6, 8.5],
+  [20.5, 6.6, 35.0], [9.5, 6.4, 36.5],
+];
+for (let i = 0; i < Math.min(Q.lamps, LAMPS.length); i++) {
+  const l = new THREE.PointLight(0xffd8a6, 15, 26, 2);
+  l.position.set(...LAMPS[i]);
+  scene.add(l);
+}
 
 // ---------- apartment ----------
 const world = buildApartment(scene);
@@ -442,6 +473,26 @@ $('#t-labels').onclick = (e) => {
   e.target.classList.toggle('on', on);
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
+
+// ---------- render quality ----------
+// Tier decides how geometry and textures are built, so switching reloads. The
+// saved layout is in localStorage, so nothing is lost.
+const QUALITY_ORDER = ['auto', 'low', 'med', 'high'];
+const qBtn = $('#t-quality');
+function labelQuality() {
+  const name = PINNED === 'auto' ? `Auto · ${AUTO_TIER}` : PINNED;
+  qBtn.textContent = `◐ ${name}`;
+  qBtn.title = `Render quality — currently ${Q.tier}. Click to cycle (reloads).`;
+  qBtn.classList.toggle('on', PINNED !== 'auto');
+}
+labelQuality();
+qBtn.onclick = () => {
+  setPin(QUALITY_ORDER[(QUALITY_ORDER.indexOf(PINNED) + 1) % QUALITY_ORDER.length]);
+  // ?q= outranks the stored pin, so drop it or the button would look inert
+  const url = new URL(location.href);
+  url.searchParams.delete('q');
+  location.replace(url);
+};
 $('#t-plan').onclick = () => setPlan(!planOn);
 $('#t-lock').onclick = () => setLock(!locked);
 $('#t-measure').onclick = () => setMeasure(!measureOn);
@@ -457,9 +508,16 @@ function setSidebar(open, persist = true) {
 $('#sb-collapse').onclick = () => setSidebar(false);
 $('#sb-open').onclick = () => setSidebar(true);
 
-$('#b-sample').onclick = () => {
-  if (confirm('Replace the current layout with the default layout?')) interactions.load(SAMPLE);
-};
+// Both presets replace whatever is on the floor, so they confirm first; the
+// current arrangement is only in localStorage and there's no undo.
+function loadPreset(name, layout) {
+  if (!interactions.items.length || confirm(`Replace the current layout with the ${name} layout?`)) {
+    interactions.load(layout);
+    interactions.deselect();
+  }
+}
+$('#b-sample').onclick = () => loadPreset('model unit', MODEL_UNIT);
+$('#b-mine').onclick = () => loadPreset('my furniture', MY_FURNITURE);
 $('#b-clear').onclick = () => { if (confirm('Remove all furniture?')) interactions.clear(); };
 
 // ---------- export / import ----------
@@ -511,11 +569,49 @@ $('#s-rotr').onclick = () => interactions.rotateSelected(-15);
 $('#s-dup').onclick = () => interactions.duplicateSelected();
 $('#s-del').onclick = () => interactions.removeSelected();
 
-// ---------- default layout ----------
-// Keeps the living area open: TV on the west divider wall, sofa facing it, a round
-// dining table by the NE windows, and a clear path to the balcony door (x 21.6-24.6).
+// ---------- layout presets ----------
 const HPI = Math.PI / 2;
-const SAMPLE = [
+
+// The default. Traced from the Matterport scan of the building's two-bedroom
+// model unit, room by room: navy sofa along the east glass facing a credenza and
+// wall-hung TV on the divider, a cream wingback angled in by the north windows,
+// a round pedestal table centred on the sliding door, king in the master with
+// its headboard on the west wall, queen in bedroom 2 against the north wall.
+// The model unit's balcony is unstaged, so this leaves it empty too.
+const MODEL_UNIT = [
+  // Living — the seating group runs along the east glazing, which is only 9 ft
+  // clear between the NE column (ends z 4.8) and the countertop column
+  // (starts z 13.85). Sofa + side table just fit; don't nudge them apart.
+  { id: 'sofa', x: 26.1, z: 10.25, r: -HPI },
+  { id: 'side', x: 26.4, z: 5.78, r: 0 },
+  { id: 'rug58', x: 22.8, z: 9.7, r: HPI },
+  { id: 'coffee', x: 22.9, z: 10.25, r: -HPI },
+  { id: 'armchair', x: 22.4, z: 3.2, r: 0.35 },
+  { id: 'lamp', x: 19.9, z: 1.5, r: 0 },
+  { id: 'tv', x: 13.2, z: 9.3, r: HPI },
+  // dining — round table centred on the sliding glass door
+  { id: 'roundtable', x: 17.1, z: 4.4, r: 0 },
+  { id: 'chair', x: 17.1, z: 2.3, r: 0 },
+  { id: 'chair', x: 17.1, z: 6.5, r: Math.PI },
+  { id: 'chair', x: 15.0, z: 4.4, r: HPI },
+  { id: 'chair', x: 19.2, z: 4.4, r: -HPI },
+  { id: 'stool', x: 19.8, z: 13.35, r: 0 },
+  { id: 'stool', x: 22.2, z: 13.35, r: 0 },
+  // master — king with the headboard on the west wall, chest on the divider
+  { id: 'king', x: 4.3, z: 8.7, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 4.3, r: HPI },
+  { id: 'nightstand', x: 1.5, z: 13.1, r: HPI },
+  { id: 'dresser', x: 10.8, z: 9.0, r: -HPI },
+  // bedroom 2 — headboard on the north wall, closet doors opposite
+  { id: 'queen', x: 20.2, z: 34.4, r: 0 },
+  { id: 'nightstand', x: 16.6, z: 31.7, r: 0 },
+  { id: 'nightstand', x: 23.8, z: 31.7, r: 0 },
+];
+
+// The owner's real pieces at measured sizes (the `my-*` catalog entries), kept as
+// a second preset so the layout that was actually planned here isn't lost.
+// Keeps the living area open and a clear path to the balcony door (x 21.6-24.6).
+const MY_FURNITURE = [
   // living (NE corner x>24.7, z<4.8 is a structural column — keep clear)
   { id: 'my-tv', x: 13.35, z: 8.8, r: HPI },
   { id: 'my-shelf', x: 13.1, z: 4.9, r: HPI },
@@ -555,12 +651,12 @@ const SAMPLE = [
   { id: 'planter', x: 21.5, z: -1.2, r: 0 },
 ];
 
-// load saved layout or sample
+// load saved layout, or the model unit on a first visit
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null');
-  interactions.load(saved && saved.length ? saved : SAMPLE);
+  interactions.load(saved && saved.length ? saved : MODEL_UNIT);
   interactions.deselect();
-} catch { interactions.load(SAMPLE); interactions.deselect(); }
+} catch { interactions.load(MODEL_UNIT); interactions.deselect(); }
 
 // restore UI prefs — touch devices default to view-only: locked, sidebar collapsed.
 // Auto-chosen defaults are not persisted (the pane can even load at 0×0 width);
@@ -606,10 +702,36 @@ function fitViewport() {
   fitPlanCam(w / h);
   renderer.setSize(w, h);
 }
+
+// Adaptive resolution: the tier presets are a guess, this is the measurement.
+// If the device can't hold ~50fps we render fewer pixels rather than dropping
+// frames; if it has headroom we walk back up to the tier's native ratio.
+const perf = { t: 0, frames: 0, scale: 1, warmup: 1.5 };
+function adaptResolution(dt) {
+  if (perf.warmup > 0) { perf.warmup -= dt; return; }
+  // Frames longer than a quarter second aren't slow rendering, they're the tab
+  // being throttled or the main thread stalling on a rebuild. Counting them
+  // would ratchet the resolution down and never let it back up.
+  if (dt > 0.25 || document.visibilityState !== 'visible') { perf.t = 0; perf.frames = 0; return; }
+  perf.t += dt;
+  perf.frames++;
+  if (perf.t < 1) return;
+  const fps = perf.frames / perf.t;
+  perf.t = 0; perf.frames = 0;
+  let next = perf.scale;
+  if (fps < 48 && perf.scale > 0.6) next = Math.max(0.6, perf.scale - 0.15);
+  else if (fps > 58 && perf.scale < 1) next = Math.min(1, perf.scale + 0.1);
+  if (next !== perf.scale) {
+    perf.scale = next;
+    renderer.setPixelRatio(BASE_DPR * next);
+  }
+}
+
 function tick() {
   requestAnimationFrame(tick);
   fitViewport();
   const dt = clock.getDelta();
+  adaptResolution(dt);
   if (walk.on) {
     const run = walk.keys.has('ShiftLeft') || walk.keys.has('ShiftRight');
     const sp = (run ? 13 : 7.5) * Math.min(dt, 0.05);
@@ -649,3 +771,10 @@ function tick() {
 tick();
 
 window.addEventListener('resize', fitViewport);
+// coming back from a background tab: re-measure from scratch
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { perf.warmup = 1; perf.t = 0; perf.frames = 0; }
+});
+
+// debugging handle: renderer.info.render.calls / .triangles, quality tier, etc.
+window.AQUA = { renderer, scene, camera, controls, world, quality: Q, perf, merge: mergeStats };

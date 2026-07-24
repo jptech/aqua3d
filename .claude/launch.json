@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8125", "--directory", "Z:/aqua3d/app"],
       "port": 8125
+    },
+    {
+      "name": "aqua3d-alt3",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8126", "--directory", "Z:/aqua3d/app"],
+      "port": 8126
     }
   ]
 }

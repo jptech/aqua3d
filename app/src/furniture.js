@@ -1,46 +1,62 @@
 // Procedural furniture catalog. Dimensions in feet (w = x, d = z, h = y at rot 0).
 // Each builder returns a THREE.Group with its origin at floor level, footprint center.
 import * as THREE from 'three';
-import { walnutTexture, mapleTexture, artTexture } from './textures.js';
+import { artTexture, surfaceMaterial, blobShadow } from './textures.js';
+import { boxGeometry, mergeStatic } from './geo.js';
+import { Q } from './quality.js';
+
+const CYL = Q.tier === 'low' ? 12 : 20;
 
 let mats = null;
 function m() {
   if (mats) return mats;
   mats = {
-    fabric: new THREE.MeshStandardMaterial({ color: 0x7e8791, roughness: 0.95 }),
-    fabricDark: new THREE.MeshStandardMaterial({ color: 0x4d5560, roughness: 0.95 }),
-    accent: new THREE.MeshStandardMaterial({ color: 0x8a6d54, roughness: 0.9 }),
-    leather: new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.6 }),
-    walnut: new THREE.MeshStandardMaterial({ map: walnutTexture(1, 1), roughness: 0.55 }),
-    oak: new THREE.MeshStandardMaterial({ map: mapleTexture(1, 1), roughness: 0.6 }),
-    metal: new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.4, metalness: 0.7 }),
-    chrome: new THREE.MeshStandardMaterial({ color: 0xc9ced2, roughness: 0.2, metalness: 0.9 }),
-    white: new THREE.MeshStandardMaterial({ color: 0xf5f3ee, roughness: 0.8 }),
-    duvet: new THREE.MeshStandardMaterial({ color: 0xdde1e4, roughness: 0.95 }),
-    duvetAccent: new THREE.MeshStandardMaterial({ color: 0x5f7286, roughness: 0.95 }),
-    pillow: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }),
-    screen: new THREE.MeshStandardMaterial({ color: 0x0a0c10, roughness: 0.2, metalness: 0.4, emissive: 0x0e1a24, emissiveIntensity: 0.4 }),
-    rug1: new THREE.MeshStandardMaterial({ color: 0x9aa4a8, roughness: 1 }),
-    rug2: new THREE.MeshStandardMaterial({ color: 0x7a8496, roughness: 1 }),
-    plantPot: new THREE.MeshStandardMaterial({ color: 0xcfc8bb, roughness: 0.9 }),
-    leaf: new THREE.MeshStandardMaterial({ color: 0x4a7247, roughness: 0.9 }),
-    glassTop: new THREE.MeshPhysicalMaterial({ color: 0xa8c0c8, transparent: true, opacity: 0.35, roughness: 0.1 }),
-    brass: new THREE.MeshStandardMaterial({ color: 0xb08d57, roughness: 0.35, metalness: 0.8 }),
-    mirror: new THREE.MeshStandardMaterial({ color: 0xcfe0e8, roughness: 0.05, metalness: 0.9 }),
-    frame: new THREE.MeshStandardMaterial({ color: 0x2b2622, roughness: 0.6 }),
+    fabric: surfaceMaterial('linen', { color: 0x7e8791, roughness: 0.92, normalScale: 0.8 }),
+    fabricDark: surfaceMaterial('linen', { color: 0x4d5560, roughness: 0.92, normalScale: 0.8 }),
+    accent: surfaceMaterial('linen', { color: 0x8a6d54, roughness: 0.88, normalScale: 0.6 }),
+    leather: new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.45, envMapIntensity: 0.8 }),
+    walnut: surfaceMaterial('walnut', { roughness: 0.42, normalScale: 0.5, envMapIntensity: 0.8 }),
+    oak: surfaceMaterial('oakFloor', { roughness: 0.45, normalScale: 0.5, envMapIntensity: 0.8 }),
+    metal: new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.32, metalness: 0.85 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xd2d7db, roughness: 0.12, metalness: 1 }),
+    white: new THREE.MeshStandardMaterial({ color: 0xf6f4f0, roughness: 0.55, envMapIntensity: 0.8 }),
+    duvet: surfaceMaterial('linen', { color: 0xdde1e4, roughness: 0.95, normalScale: 0.45 }),
+    duvetAccent: surfaceMaterial('linen', { color: 0x5f7286, roughness: 0.95, normalScale: 0.45 }),
+    pillow: surfaceMaterial('linen', { color: 0xfbfbfa, roughness: 1, normalScale: 0.5 }),
+    screen: new THREE.MeshStandardMaterial({
+      color: 0x08090c, roughness: 0.08, metalness: 0.2,
+      emissive: 0x101c26, emissiveIntensity: 0.35, envMapIntensity: 0.35,
+    }),
+    rug1: surfaceMaterial('linen', { color: 0x9aa4a8, roughness: 1, normalScale: 1.2 }),
+    rug2: surfaceMaterial('linen', { color: 0x7a8496, roughness: 1, normalScale: 1.2 }),
+    plantPot: new THREE.MeshStandardMaterial({ color: 0xcfc8bb, roughness: 0.75 }),
+    soil: new THREE.MeshStandardMaterial({ color: 0x3c332a, roughness: 1 }),
+    leaf: new THREE.MeshStandardMaterial({ color: 0x4a7247, roughness: 0.65, envMapIntensity: 0.9 }),
+    teak: surfaceMaterial('oakFloor', { color: 0xa8825a, roughness: 0.62, normalScale: 0.6 }),
+    glassTop: new THREE.MeshPhysicalMaterial({
+      color: 0xb8ccd4, transparent: true, opacity: 0.3, roughness: 0.03,
+      envMapIntensity: 1.4, reflectivity: 0.6,
+    }),
+    brass: new THREE.MeshStandardMaterial({ color: 0xb08d57, roughness: 0.24, metalness: 1 }),
+    mirror: new THREE.MeshStandardMaterial({ color: 0xdce8ee, roughness: 0.04, metalness: 1, envMapIntensity: 1.2 }),
+    frame: new THREE.MeshStandardMaterial({ color: 0x2b2622, roughness: 0.5 }),
   };
   return mats;
 }
 
-function B(w, h, d, mat, x = 0, y = 0, z = 0) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+// `bev` overrides the edge radius: hard-edged case goods keep the tier default,
+// while cushions, mattresses and pillows take a fat radius so they read as
+// something soft rather than a stack of cardboard boxes.
+function B(w, h, d, mat, x = 0, y = 0, z = 0, bev = Q.bevel) {
+  const mesh = new THREE.Mesh(boxGeometry(w, h, d, bev, mat.userData.uvFt || 0), mat);
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
+const SOFT = Q.bevel > 0 ? 1 : 0;   // low tier keeps flat boxes throughout
 function C(r, h, mat, x = 0, y = 0, z = 0, rTop = null) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rTop ?? r, r, h, 20), mat);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rTop ?? r, r, h, CYL), mat);
   mesh.position.set(x, y + h / 2, z);
   mesh.castShadow = true;
   return mesh;
@@ -58,12 +74,12 @@ function bed(w, len, name) {
     g.add(B(w, 0.85, len, m().walnut, 0, 0.35, 0));                  // platform
     legs(g, w, len, 0.35, M2.metal, 0.35);
     g.add(B(w, 3.6, 0.35, M2.walnut, 0, 0, -len / 2 + 0.18));        // headboard
-    g.add(B(w - 0.3, 0.8, len - 0.5, M2.white, 0, 1.2, 0.1));        // mattress
-    g.add(B(w - 0.25, 0.55, len * 0.62, M2.duvet, 0, 1.95, len * 0.17)); // duvet
-    g.add(B(w - 0.25, 0.18, len * 0.2, M2.duvetAccent, 0, 2.0, len * 0.31)); // throw
+    g.add(B(w - 0.3, 0.8, len - 0.5, M2.white, 0, 1.2, 0.1, 0.14 * SOFT));       // mattress
+    g.add(B(w - 0.25, 0.55, len * 0.62, M2.duvet, 0, 1.95, len * 0.17, 0.2 * SOFT));
+    g.add(B(w - 0.25, 0.18, len * 0.2, M2.duvetAccent, 0, 2.0, len * 0.31, 0.07 * SOFT));
     const pw = (w - 0.7) / 2;
     for (const sx of [-1, 1]) {
-      g.add(B(pw, 0.45, 1.3, M2.pillow, sx * (pw / 2 + 0.12), 2.0, -len / 2 + 1.1));
+      g.add(B(pw, 0.45, 1.3, M2.pillow, sx * (pw / 2 + 0.12), 2.0, -len / 2 + 1.1, 0.19 * SOFT));
     }
     return g;
   };
@@ -86,12 +102,23 @@ function seat(w, d, { arms = true, backH = 2.6, name = '' } = {}) {
   return () => {
     const g = new THREE.Group(), M2 = m();
     const aw = arms ? 0.55 : 0;
-    g.add(B(w, 0.6, d, M2.fabric, 0, 0.55, 0));                          // base
+    const inner = w - 2 * aw;
+    g.add(B(w, 0.6, d, M2.fabric, 0, 0.55, 0, 0.1 * SOFT));                      // plinth
     legs(g, w, d, 0.55, M2.metal, 0.3, 0.06);
-    g.add(B(w - 2 * aw, 0.5, d - 0.6, M2.fabricDark, 0, 1.15, 0.15));    // cushions
-    g.add(B(w, backH - 1.1, 0.6, M2.fabric, 0, 1.1, -d / 2 + 0.3));      // back
+    g.add(B(w, backH - 1.1, 0.6, M2.fabric, 0, 1.1, -d / 2 + 0.3, 0.14 * SOFT)); // back frame
+    // separate seat and back cushions with a visible gap — one continuous slab
+    // is what makes a procedural sofa read as a bench
+    const n = Math.max(1, Math.round(inner / 2.6));
+    const cw = (inner - 0.09 * (n - 1)) / n;
+    for (let i = 0; i < n; i++) {
+      const cx = -inner / 2 + cw / 2 + i * (cw + 0.09);
+      g.add(B(cw, 0.52, d - 0.75, M2.fabricDark, cx, 1.15, 0.2, 0.17 * SOFT));
+      g.add(B(cw, backH - 1.6, 0.42, M2.fabricDark, cx, 1.55, -d / 2 + 0.62, 0.16 * SOFT));
+    }
     if (arms) {
-      for (const sx of [-1, 1]) g.add(B(aw, 1.15, d, M2.fabric, sx * (w / 2 - aw / 2), 0.55, 0));
+      for (const sx of [-1, 1]) {
+        g.add(B(aw, 1.15, d, M2.fabric, sx * (w / 2 - aw / 2), 0.55, 0, 0.2 * SOFT));
+      }
     }
     return g;
   };
@@ -259,15 +286,26 @@ export const CATALOG = [
   {
     id: 'plant', name: 'Plant', cat: 'Living', w: 1.6, d: 1.6, h: 5.0,
     build: () => {
-      const g = new THREE.Group();
-      g.add(C(0.55, 1.1, m().plantPot, 0, 0, 0, 0.65));
-      for (let i = 0; i < 7; i++) {
-        const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.32, 2.2, 6), m().leaf);
-        const a = (i / 7) * Math.PI * 2;
-        leaf.position.set(Math.cos(a) * 0.45, 2.6 + (i % 3) * 0.5, Math.sin(a) * 0.45);
-        leaf.rotation.set(Math.cos(a) * 0.5, 0, Math.sin(a) * -0.5);
+      const g = new THREE.Group(), M2 = m();
+      g.add(C(0.6, 1.3, M2.plantPot, 0, 0, 0, 0.76));                    // tapered pot
+      g.add(C(0.7, 0.14, M2.soil, 0, 1.2, 0));
+      // upright blades fanned around the pot: each cone is flattened on one axis
+      // and tipped outward from a holder, which reads far better than a ring of
+      // fat cones stuck into the rim
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + (i % 2) * 0.26;
+        const len = 2.1 + (i % 4) * 0.55;
+        const tilt = 0.14 + (i % 5) * 0.11;
+        const holder = new THREE.Group();
+        holder.rotation.y = a;
+        holder.position.y = 1.28;
+        const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.24, len, 5), M2.leaf);
+        leaf.scale.set(1, 1, 0.3);
+        leaf.position.set(Math.sin(tilt) * len * 0.5, Math.cos(tilt) * len * 0.5, 0);
+        leaf.rotation.z = -tilt;
         leaf.castShadow = true;
-        g.add(leaf);
+        holder.add(leaf);
+        g.add(holder);
       }
       return g;
     },
@@ -296,9 +334,9 @@ export const CATALOG = [
     id: 'chair', name: 'Dining chair', cat: 'Dining', w: 1.55, d: 1.7, h: 3.0, tuck: true,
     build: () => {
       const g = new THREE.Group(), M2 = m();
-      g.add(B(1.45, 0.25, 1.45, M2.fabricDark, 0, 1.4, 0.08));
+      g.add(B(1.45, 0.25, 1.45, M2.fabricDark, 0, 1.4, 0.08, 0.09 * SOFT));
       legs(g, 1.45, 1.45, 1.4, M2.metal, 0.12, 0.05);
-      g.add(B(1.45, 1.5, 0.2, M2.fabricDark, 0, 1.6, -0.65));
+      g.add(B(1.45, 1.5, 0.2, M2.fabricDark, 0, 1.6, -0.65, 0.08 * SOFT));
       return g;
     },
   },
@@ -579,9 +617,18 @@ export const CATALOG = [
     id: 'outchair', name: 'Outdoor chair', cat: 'Balcony', w: 2.3, d: 2.5, h: 2.9,
     build: () => {
       const g = new THREE.Group(), M2 = m();
-      g.add(B(2.1, 0.3, 2.1, M2.accent, 0, 0.9, 0.1));
-      g.add(B(2.1, 1.7, 0.3, M2.accent, 0, 1.0, -1.0));
-      for (const sx of [-1, 1]) g.add(B(0.15, 2.0, 2.3, M2.metal, sx * 1.05, 0, 0));
+      for (let i = 0; i < 5; i++) {                                  // slatted seat
+        g.add(B(1.9, 0.13, 0.28, M2.teak, 0, 0.9, -0.82 + i * 0.42, 0.045 * SOFT));
+      }
+      for (let i = 0; i < 4; i++) {                                  // slatted back
+        g.add(B(1.9, 0.3, 0.13, M2.teak, 0, 1.06 + i * 0.44, -1.02, 0.045 * SOFT));
+      }
+      for (const sx of [-1, 1]) {
+        g.add(B(0.13, 0.11, 2.1, M2.metal, sx * 1.02, 1.5, -0.05));  // arm
+        g.add(B(0.11, 1.5, 0.11, M2.metal, sx * 1.02, 0, -1.0));     // rear leg
+        g.add(B(0.11, 1.5, 0.11, M2.metal, sx * 1.02, 0, 0.9));      // front leg
+        g.add(B(0.11, 0.62, 0.11, M2.metal, sx * 1.02, 2.28, -1.02));
+      }
       return g;
     },
   },
@@ -599,11 +646,11 @@ export const CATALOG = [
     id: 'outsofa', name: 'Outdoor loveseat', cat: 'Balcony', w: 4.6, d: 2.6, h: 2.6,
     build: () => {
       const g = new THREE.Group(), M2 = m();
-      g.add(B(4.6, 0.35, 2.6, M2.accent, 0, 0.55, 0));
-      for (const sx of [-1, 1]) g.add(B(0.35, 1.3, 2.6, M2.accent, sx * 2.12, 0.3, 0));
-      g.add(B(4.6, 1.5, 0.35, M2.accent, 0, 0.45, -1.12));
-      g.add(B(3.7, 0.45, 2.0, M2.fabric, 0, 0.9, 0.15));
-      g.add(B(3.7, 1.0, 0.4, M2.fabric, 0, 1.35, -0.82));
+      g.add(B(4.6, 0.35, 2.6, M2.teak, 0, 0.55, 0));
+      for (const sx of [-1, 1]) g.add(B(0.35, 1.3, 2.6, M2.teak, sx * 2.12, 0.3, 0, 0.06 * SOFT));
+      g.add(B(4.6, 1.5, 0.35, M2.teak, 0, 0.45, -1.12));
+      g.add(B(3.7, 0.45, 2.0, M2.fabric, 0, 0.9, 0.15, 0.14 * SOFT));
+      g.add(B(3.7, 1.0, 0.4, M2.fabric, 0, 1.35, -0.82, 0.15 * SOFT));
       legs(g, 4.6, 2.6, 0.55, M2.metal, 0.3, 0.07);
       return g;
     },
@@ -612,12 +659,19 @@ export const CATALOG = [
     id: 'lounger', name: 'Sun lounger', cat: 'Balcony', w: 2.2, d: 5.4, h: 2.6,
     build: () => {
       const g = new THREE.Group(), M2 = m();
-      g.add(B(2.2, 0.35, 3.6, M2.accent, 0, 0.75, 0.8));
-      const back = B(2.2, 0.35, 2.2, M2.accent);
-      back.rotation.x = -0.6;
-      back.position.set(0, 1.35, -1.55);
+      for (let i = 0; i < 8; i++) {                                   // slatted deck
+        g.add(B(2.0, 0.13, 0.3, M2.teak, 0, 0.78, -0.9 + i * 0.44, 0.045 * SOFT));
+      }
+      const back = new THREE.Group();                                 // raised backrest
+      for (let i = 0; i < 5; i++) back.add(B(2.0, 0.13, 0.3, M2.teak, 0, 0, -0.1 - i * 0.44, 0.045 * SOFT));
+      back.rotation.x = -0.62;
+      back.position.set(0, 0.85, -0.95);
       g.add(back);
-      for (const sx of [-1, 1]) for (const z of [-0.9, 2.3]) g.add(C(0.07, 0.75, M2.metal, sx * 0.95, 0, z));
+      for (const sx of [-1, 1]) {
+        g.add(B(0.12, 0.78, 0.12, M2.metal, sx * 0.96, 0, -0.8));
+        g.add(B(0.12, 0.78, 0.12, M2.metal, sx * 0.96, 0, 2.3));
+        g.add(B(0.1, 0.1, 4.2, M2.metal, sx * 0.96, 0.72, 0.7));      // side rail
+      }
       return g;
     },
   },
@@ -637,11 +691,35 @@ export const CATALOG = [
   },
 ];
 
+let blobMat = null;
+
+// Soft ambient-occlusion patch on the floor under a piece. Sits just above rug
+// height so items placed on a rug still read as grounded.
+function contactShadow(def) {
+  if (!blobMat) {
+    blobMat = new THREE.MeshBasicMaterial({
+      map: blobShadow(), color: 0x0d1015, transparent: true,
+      opacity: 0.5, depthWrite: false,
+    });
+  }
+  const s = new THREE.Mesh(new THREE.PlaneGeometry(def.w * 1.35, def.d * 1.35), blobMat);
+  s.rotation.x = -Math.PI / 2;
+  s.position.y = 0.095;
+  s.renderOrder = 1;
+  s.raycast = () => {};
+  return s;
+}
+
 export function buildItem(id) {
   const def = CATALOG.find((c) => c.id === id);
   if (!def) return null;
   const g = def.build();
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  // a piece only ever moves as a whole, so its parts can collapse to one mesh per
+  // material — a furnished plan goes from ~250 draw calls to ~100
+  mergeStatic(g);
+  // rugs are flat and wall art hangs clear of the floor — neither casts a pool
+  if (Q.contactShadows && !def.flat && def.cat !== 'Art') g.add(contactShadow(def));
   g.userData.def = def;
   return g;
 }

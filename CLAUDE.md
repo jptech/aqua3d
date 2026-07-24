@@ -7,6 +7,13 @@ Used to plan furniture layouts at true scale. Source of truth for the architectu
 walking the unit, which override anything read from the images** (the drawings are
 approximate, especially the refined one's lower third).
 
+A Matterport scan of the **two-bedroom model unit** is at
+<https://my.matterport.com/show/?m=Z3EsnDJkQsd>. It is the same floorplan and the
+same building shell, so it is good evidence for **layout and architectural detail**
+— but it has been restaged and repainted, so it is *not* evidence for this unit's
+finishes. Where they disagree, the owner's photos win: this unit has warm beige
+walls, not the model unit's gray-blue.
+
 ## Run / verify
 
 - No build step, no node needed: `python -m http.server 8123 --directory Z:/aqua3d/app`,
@@ -29,8 +36,10 @@ approximate, especially the refined one's lower third).
 | `src/furniture.js` | Procedural catalog. Real-world footprints (`w`×`d` ft); flags: `flat` (rugs), `tuck`/`surface` (chairs may overlap tables). |
 | `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles. Has an `enabled` flag other tools toggle. |
 | `src/measure.js` | Two-click measuring tape. |
-| `src/main.js` | Scene/lights/skyline, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence. |
-| `src/textures.js` | Canvas textures: gray-blue carpet, beige tile, speckled granite, maple, tower facades. |
+| `src/main.js` | Scene/lights/skyline, PMREM environment map, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence, adaptive resolution. |
+| `src/textures.js` | Canvas surfaces (carpet, tile, granite, maple/walnut, plaster, concrete, glass tile, linen) each with a real-world tile size + Sobel-derived normal map; equirect sky; contact-shadow blob. |
+| `src/geo.js` | Cached chamfered box geometry, feet-based UV scaling, and `mergeStatic()` (collapses a group to one mesh per material + shadow-flag bucket). |
+| `src/quality.js` | Device-tier detection (low/med/high) and the render-cost knobs every other module reads: pixel ratio, shadow size, normal maps, bevel radius, lamp count, texture size. |
 
 ## Invariants — keep these when editing geometry
 
@@ -44,6 +53,18 @@ approximate, especially the refined one's lower third).
   Bump the version only if saved furniture would now sit inside new walls.
 - Cabinet-door "seams" are hairline boxes (~0.05 ft wide). A fat seam renders as a big
   black panel — size them thin.
+- **The shell and every furniture piece are merged after they're built** (`mergeStatic`),
+  so anything that must stay individually movable, toggleable or animated has to be
+  added *after* the merge, or flagged `userData.noMerge`. Materials are the merge key:
+  give two things the same material and they end up in the same mesh.
+- Textured materials carry `userData.uvFt` (feet per texture tile) and `box()` / `B()`
+  emit UVs in feet to match. A new textured material needs a surface registered in
+  `textures.js`; a plain colour material can skip it.
+- Nothing expensive should be hardcoded — read it from `Q` in `quality.js` so the low
+  tier stays cheap. Test with `?q=low` and `?q=high`; the ◐ button pins a tier and
+  reloads (tiers change how geometry/textures are built, so a live switch isn't possible).
+- `window.AQUA` exposes the renderer, scene, camera and merge stats for console poking
+  (`AQUA.renderer.info.render.calls`).
 
 ## Established floorplan facts (owner-verified; don't regress)
 
@@ -67,6 +88,38 @@ approximate, especially the refined one's lower third).
   the NE by the windows, **no windows on the south side** (wall + closet bump only).
 - Master bath: tub alcove has a wall stub at the tub's north edge; toilet faces west.
 - Bath 2: the east face is a **solid wall** (no glazing) — the tub sits against it.
+- Finishes, cross-checked against the Matterport walkthrough and the owner's photos:
+  ceilings are the **exposed slab soffit with a sprayed aggregate finish** (cream,
+  heavily stippled — not smooth drywall); casework hardware is **small round satin
+  knobs**, never bar pulls; doors have **satin levers on round roses**, not knobs;
+  both tubs are alcove tubs with **tile surrounds** up ~5 ft and painted wall above;
+  every window has a **roller shade in a dark head pocket**; living and kitchen both
+  have **surface-mounted track lighting**; louvered **supply grilles** sit high on the
+  walls in every room.
+- Both vanities are the same builder-standard unit: maple doors under a **one-piece
+  cultured-marble top with recessed oval bowls** and an integral splash lip, a
+  full-width frameless mirror, and a multi-globe chrome bar light above it. There is no
+  boolean here, so `deckStrips()` assembles each slab from pieces around the bowl
+  openings and a flat ring closes the rectangular corners — the cabinet body stops at
+  y 2.4 so the bowls have somewhere to hang.
+- Kitchen appliances (model unit): freestanding **gas range** with a stainless
+  backguard carrying the controls and clock, black glass cooktop, cast-iron grates and
+  front knobs; **over-the-range microwave**, stainless with a black glass door and a
+  right-hand keypad; stainless **top-freezer refrigerator** with bar handles on the
+  east stile; dishwasher with a black top control strip. The cabinet run and counter
+  **break either side of the range slot (x 21.4–23.9)** — a continuous slab caps the
+  cooktop.
+- Backsplash differs between units: the owner's is a **band of ~1.5" glass mosaic**
+  above a granite curb (what's modelled); the model unit was re-tiled in full-height
+  gray glass subway. Same for lighting — the owner has one amber pendant plus track,
+  the model unit has two white pendants and a dome.
+- Mirrors are deliberately **dulled** (roughness 0.38, envMapIntensity 0.18). A real
+  mirror needs a second render pass; at metalness 1 / roughness 0 it just samples the
+  sky, so the bathroom mirrors ended up showing the sun.
+- Floors: **dark espresso plank** in living/dining and the hall spine, **carpet** in
+  both bedrooms and the walk-in, **porcelain tile** in kitchen, both baths and foyer.
+- Balcony railing is **dark metal pickets at ~4" centres with a flat top rail** — not
+  glass. Both the tour photos and the Matterport scan show this.
 - Balcony: the plan's 17'11" × 23'2" are the curved slab's **overall bounding box** —
   it starts at the sliding door (x≈15.5), bulges ~4 ft past the north face and ~5 ft
   past the east face, and rejoins the facade at the chase column (z≈19). It does
@@ -76,6 +129,21 @@ approximate, especially the refined one's lower third).
 
 The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces the owner
 actually owns, at real measured dimensions — don't resize them, and prefer them over
-generic equivalents in the default layout: 64"×16" TV console with 65" TV, 47"×28"
+generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 47"×28"
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
 (62" tall), Full XL bed, Queen bed.
+
+## Layout presets
+
+Two arrays in main.js, both reachable from the sidebar and both kept collision-free:
+
+- `MODEL_UNIT` — **the default**, restored by the "Model unit" button and loaded on a
+  first visit. Traced from the Matterport scan of the building's model unit, so it uses
+  generic catalog pieces, not the `my-*` ones. Its balcony is empty because the real
+  model unit's is. The east-wall seating group is tight: there are only ~9 ft clear
+  between the NE column (ends z 4.8) and the countertop column (starts z 13.85), and
+  the sofa plus side table use ~8.7 of it — nudging them apart trips the collision pad.
+- `MY_FURNITURE` — the owner's real pieces, restored by the "My furniture" button.
+
+After editing either, reload with `localStorage.removeItem('aqua3d.layout.v5')` (a saved
+layout wins over the default) and check that no red collision pads appear.

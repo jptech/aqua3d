@@ -84,7 +84,7 @@
     .vbtn:hover, .tbtn:hover { background: rgba(255,255,255,0.16); }
     .item-btn:hover { background: rgba(127,196,232,0.22); border-color: rgba(127,196,232,0.5); }
     #b-export:hover, #b-import:hover { background: rgba(127,196,232,0.25); }
-    #b-sample:hover { background: rgba(110,190,130,0.25); }
+    #b-sample:hover, #b-mine:hover { background: rgba(110,190,130,0.25); }
     #b-clear:hover { background: rgba(230,110,110,0.25); }
     #selected button:hover { background: rgba(255,255,255,0.2); }
     #s-del:hover { background: rgba(230,90,90,0.4); }
@@ -180,6 +180,7 @@
     <button class="tbtn on" id="t-labels">Labels</button>
     <button class="tbtn" id="t-grid">Grid</button>
     <button class="tbtn" id="t-plan" title="2D floorplan view (P)">▦ 2D Plan</button>
+    <button class="tbtn" id="t-quality" title="Render quality">◐ Auto</button>
   </div>
   <div class="sep"></div>
   <div class="btn-row">
@@ -200,7 +201,10 @@
     <button id="b-import" title="Load a layout from an exported JSON file">Import</button>
   </div>
   <div class="foot">
-    <button id="b-sample" title="Restore the default furnished layout">Reset default</button>
+    <button id="b-sample" title="Restore the default layout — the building's model unit, as staged">Model unit</button>
+    <button id="b-mine" title="Load the owner's real furniture at measured sizes">My furniture</button>
+  </div>
+  <div class="foot">
     <button id="b-clear" title="Remove all furniture">Clear</button>
   </div>
   <input type="file" id="import-file" accept=".json,application/json" style="display:none">

@@ -106,7 +106,8 @@ export class Interactions {
     const pad = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.1, d + 0.1),
       new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35, depthWrite: false }));
     pad.rotation.x = -Math.PI / 2;
-    pad.position.y = 0.045;
+    pad.position.y = 0.12;      // above the item's contact shadow, or it reads muddy
+    pad.renderOrder = 2;
     pad.visible = false;
     pad.raycast = () => {};   // not pickable
     it.add(pad);
