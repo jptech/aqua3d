@@ -452,7 +452,8 @@ for (const cat of cats) {
   catDiv.appendChild(wrap);
 }
 function fmt(v) {
-  const ft = Math.floor(v), inch = Math.round((v - ft) * 12);
+  let ft = Math.floor(v), inch = Math.round((v - ft) * 12);
+  if (inch === 12) { ft += 1; inch = 0; }   // 0.97 ft is 1'0", not 0'12"
   return inch ? `${ft}'${inch}"` : `${ft}'`;
 }
 

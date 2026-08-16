@@ -133,6 +133,23 @@ generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 4
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
 (62" tall), Full XL bed, Queen bed.
 
+Storage pieces, sized from the manufacturers' listed dimensions rather than measured
+in the unit — if one reads wrong on site, the listing spec is what to re-check:
+
+| id | Product | W × D × H (in) |
+|---|---|---|
+| `my-bakers` | VASAGLE hutch bakers rack, UKKS025B01 (ASIN B0B6385687) | 31.5 × 15.7 × 66.9 |
+| `my-pantry` | VASAGLE pantry cabinet, UBBC561B12 (B0CLXZG9V2), ink black | 30 × 15.7 × 71.7 |
+| `my-fold5` | 4NM no-assembly folding bookshelf, 5-tier (B0CQCB1MTT) | 23 × 11.6 × 65.7 |
+| `my-fold4` | BHG folding bookshelf, "Fire" 4-tier (B0D86LMRBH) | 23.6 × 11.6 × 49.8 |
+| `my-cart` | SimpleHouseware 3-tier rolling utility cart (B07V49ZP66) | 17 × 12.5 × 31.5 |
+
+The two folding bookcases share `foldShelf()` — same design, different tier count and
+board colour. Their X-braced side panels are the folding linkage, so keep them: without
+the braces the pieces just read as generic bookcases. `my-fold4`'s height is the one
+figure taken from the identical clone listings (4NM / GHQME / Vogue Carpenter 4-tier)
+rather than from BHG's own listing, which doesn't publish it.
+
 ## Layout presets
 
 Two arrays in main.js, both reachable from the sidebar and both kept collision-free:
