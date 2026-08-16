@@ -40,6 +40,16 @@ function m() {
     brass: new THREE.MeshStandardMaterial({ color: 0xb08d57, roughness: 0.24, metalness: 1 }),
     mirror: new THREE.MeshStandardMaterial({ color: 0xdce8ee, roughness: 0.04, metalness: 1, envMapIntensity: 1.2 }),
     frame: new THREE.MeshStandardMaterial({ color: 0x2b2622, roughness: 0.5 }),
+    // Flat-pack finishes. Melamine "rustic brown" board on black powder-coated
+    // tube is the house style of every VASAGLE / 4NM piece the owner has; the
+    // BHG shelf's "fire" colourway is the same board pushed redder.
+    rustic: surfaceMaterial('oakFloor', { color: 0xa97a4e, roughness: 0.6, normalScale: 0.45, envMapIntensity: 0.7 }),
+    fireWood: surfaceMaterial('oakFloor', { color: 0x93482a, roughness: 0.62, normalScale: 0.45, envMapIntensity: 0.7 }),
+    inkSteel: new THREE.MeshStandardMaterial({ color: 0x1d1f22, roughness: 0.44, metalness: 0.6, envMapIntensity: 0.7 }),
+    inkPanel: new THREE.MeshStandardMaterial({ color: 0x2b2d33, roughness: 0.62, envMapIntensity: 0.5 }),
+    // carcass sits a shade darker than the fronts so the door reveals read as
+    // shadow lines instead of vanishing into one black slab
+    inkCarcass: new THREE.MeshStandardMaterial({ color: 0x15171b, roughness: 0.7, envMapIntensity: 0.35 }),
   };
   return mats;
 }
@@ -124,6 +134,81 @@ function seat(w, d, { arms = true, backH = 2.6, name = '' } = {}) {
   };
 }
 
+// The no-assembly folding bookcases (4NM, BHG) are one design in two sizes:
+// laminated boards dropped into a black tube frame whose side panels are
+// X-braced — that scissor linkage is what lets the whole thing collapse flat,
+// so it's the detail that makes them read as folding shelves and not bookcases.
+function foldShelf(W, D, H, tiers, woodKey) {
+  return () => {
+    const g = new THREE.Group(), M2 = m();
+    const wood = M2[woodKey];
+    const post = 0.06, bt = 0.06;                 // ~3/4" tube, ~3/4" board
+    const y0 = 0.13, step = (H - bt - y0) / (tiers - 1);
+    // boards span the full width and notch past the posts, which is how they sit
+    // on the real frame — inset boards read as floating slabs
+    for (let i = 0; i < tiers; i++) {
+      g.add(B(W - 0.02, bt, D - 2 * post, wood, 0, y0 + i * step, 0));
+    }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      g.add(B(post, H, post, M2.inkSteel, sx * (W - post) / 2, 0, sz * (D - post) / 2));
+    }
+    // one X per side bay: bars run corner to corner of the bay, so their length
+    // and tilt both fall out of the shelf pitch
+    const span = D - post;
+    const len = Math.hypot(span, step);
+    const tilt = Math.atan2(span, step);
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < tiers - 1; i++) {
+        const yc = y0 + (i + 0.5) * step + bt / 2;
+        for (const s of [-1, 1]) {
+          const bar = B(0.038, len, 0.038, M2.inkSteel, sx * (W - post) / 2, yc - len / 2, 0);
+          bar.rotation.x = s * tilt;
+          g.add(bar);
+        }
+      }
+    }
+    return g;
+  };
+}
+
+// S-hook hung off a wire: two opposed arcs, the upper one over the wire and the
+// lower one open for a mug. Cheap enough to place fourteen of.
+function sHook(mat, x, y, z) {
+  const g = new THREE.Group();
+  const r = 0.034, tube = 0.009;
+  [[y - r, 0.28], [y - 3 * r, 1.28]].forEach(([cy, rot]) => {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 5, Q.tier === 'low' ? 6 : 10, Math.PI * 1.45), mat);
+    arc.position.set(x, cy, z);
+    arc.rotation.z = Math.PI * rot;
+    g.add(arc);
+  });
+  return g;
+}
+
+// Open wire basket for the rolling cart: a perforated floor plus four gridded
+// walls. The wire pitch is the only thing that sells it as mesh rather than a
+// solid tray, so it's the one thing the low tier thins out instead of dropping.
+function wireBasket(g, W, D, floorY, rim, mat) {
+  const pitch = Q.tier === 'low' ? 0.3 : 0.17;
+  g.add(B(W, 0.025, D, mat, 0, floorY, 0));
+  for (const [len, axis] of [[W, 'x'], [D, 'z']]) {
+    for (const s of [-1, 1]) {
+      const off = (axis === 'x' ? D : W) / 2;
+      for (const y of [floorY + rim - 0.03, floorY + rim * 0.5]) {           // rails
+        const bar = axis === 'x' ? B(len, 0.03, 0.03, mat, 0, y, s * off)
+          : B(0.03, 0.03, len, mat, s * off, y, 0);
+        g.add(bar);
+      }
+      const n = Math.max(2, Math.round(len / pitch));
+      for (let i = 0; i <= n; i++) {
+        const p = -len / 2 + (i * len) / n;
+        g.add(axis === 'x' ? B(0.022, rim, 0.022, mat, p, floorY, s * off)
+          : B(0.022, rim, 0.022, mat, s * off, floorY, p));
+      }
+    }
+  }
+}
+
 export const CATALOG = [
   // ---- owned furniture (real dimensions) ----
   {
@@ -188,6 +273,118 @@ export const CATALOG = [
   },
   { id: 'my-fullxl', name: 'Full XL bed 54×80', cat: 'My Furniture', w: 4.5, d: 7.2, h: 3.6, build: bed(4.5, 7.2) },
   { id: 'my-queen', name: 'Queen bed 60×80', cat: 'My Furniture', w: 5.0, d: 7.2, h: 3.6, build: bed(5.0, 7.2) },
+  {
+    // VASAGLE UKKS025B01, 31.5 x 15.7 x 66.9". Two open shelves and the
+    // appliance tabletop at full depth, then a hutch whose two shelves are only
+    // about half as deep and set back against the wire panel. Owner-verified:
+    // the tabletop takes the tallest bay of the three — it's the one that has
+    // to swallow a microwave — and the two hutch shelves are tighter.
+    id: 'my-bakers', name: 'Bakers rack 31.5" (hutch)', cat: 'My Furniture', w: 2.63, d: 1.31, h: 5.58,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 2.63, D = 1.31, H = 5.58, post = 0.08, bt = 0.07;
+      const hutchD = 0.78;                          // ~9.5" against the 15.7" base
+      const zBack = -(D - post) / 2;
+      const zHutch = -D / 2 + hutchD / 2;           // hutch shelves hug the back
+      const zHutchFront = -D / 2 + hutchD - post / 2;
+      const deck = 2.85, mid = 4.37, top = H - bt;  // 17.4" over the deck, 12.8" above
+      const lows = [0.30, 1.40, deck];
+      for (const y of lows) g.add(B(W - 0.02, bt, D - 2 * post, M2.rustic, 0, y, 0));
+      for (const y of [mid, top]) g.add(B(W - 0.02, bt, hutchD - post, M2.rustic, 0, y, zHutch));
+      // rear posts run the full height; the front pair stops at the tabletop and
+      // the hutch picks up on its own set-back uprights
+      for (const sx of [-1, 1]) {
+        g.add(B(post, H, post, M2.inkSteel, sx * (W - post) / 2, 0, zBack));
+        g.add(B(post, deck + bt, post, M2.inkSteel, sx * (W - post) / 2, 0, -zBack));
+        g.add(B(post, H - deck - bt, post, M2.inkSteel, sx * (W - post) / 2, deck + bt, zHutchFront));
+      }
+      // frame rails under every board, plus a foot rail that keeps the base square
+      for (const y of [...lows, 0.08]) {
+        for (const sz of [-1, 1]) g.add(B(W - 2 * post, 0.045, 0.045, M2.inkSteel, 0, y - 0.05, sz * (D - post) / 2));
+      }
+      for (const y of [mid, top]) {
+        for (const z of [zBack, zHutchFront]) g.add(B(W - 2 * post, 0.045, 0.045, M2.inkSteel, 0, y - 0.05, z));
+      }
+      // wire back panel across the hutch: verticals on a ~2.5" pitch between
+      // rails, which is what the hooks clip onto
+      const wireN = Q.tier === 'low' ? 7 : 13;
+      const span = W - 2 * post, wBot = deck + bt;
+      for (let i = 0; i < wireN; i++) {
+        g.add(B(0.022, top - wBot, 0.022, M2.inkSteel, -span / 2 + (i * span) / (wireN - 1), wBot, zBack));
+      }
+      for (const y of [wBot, mid - 0.05, top - 0.03]) g.add(B(span, 0.028, 0.028, M2.inkSteel, 0, y, zBack));
+      // power strip mounted on the back-right post above the tabletop
+      g.add(B(0.55, 0.3, 0.12, M2.inkSteel, W / 2 - 0.45, 3.02, zBack - 0.04));
+      // 14 S-hooks: eight clipped over the wire panel's mid rail, three hanging
+      // off each hutch side bar
+      for (let i = 0; i < 8; i++) {
+        g.add(sHook(M2.metal, -0.98 + i * 0.28, mid - 0.07, zBack + 0.05));
+      }
+      for (const sx of [-1, 1]) for (const y of [3.55, 4.15, 5.05]) {
+        g.add(sHook(M2.metal, sx * ((W - post) / 2 + 0.02), y, zHutch));
+      }
+      return g;
+    },
+  },
+  {
+    // VASAGLE UBBC561B12, 30 x 15.7 x 71.7", ink black. Tall two-door upper over
+    // a drawer over a two-door base, all on a recessed plinth.
+    id: 'my-pantry', name: 'Pantry cabinet 30" (71.7" tall)', cat: 'My Furniture', w: 2.5, d: 1.31, h: 5.98,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 2.5, D = 1.31, H = 5.98, ft = 0.07;      // ft = front thickness
+      g.add(B(W, H - 0.2, D - ft, M2.inkCarcass, 0, 0.2, -ft / 2));
+      g.add(B(W - 0.26, 0.2, D - ft - 0.12, M2.inkSteel, 0, 0, -ft / 2));
+      const zf = (D - ft) / 2;
+      const dw = (W - 0.12) / 2;                          // two doors, 0.04 reveals
+      // [bottom, top] of each front; the drawer sits between the two door pairs
+      const pairs = [[0.26, 2.12], [2.87, 5.9]];
+      for (const [y0, y1] of pairs) {
+        for (const sx of [-1, 1]) {
+          g.add(B(dw, y1 - y0, ft, M2.inkPanel, sx * (dw + 0.04) / 2, y0, zf));
+          // slim vertical bar pull on the inner stile
+          g.add(B(0.05, (y1 - y0) * 0.36, 0.06, M2.metal, sx * 0.16, y0 + (y1 - y0) * 0.32, zf + ft / 2));
+        }
+      }
+      g.add(B(W - 0.08, 0.6, ft, M2.inkPanel, 0, 2.19, zf));
+      g.add(B(W * 0.42, 0.05, 0.06, M2.metal, 0, 2.46, zf + ft / 2));
+      return g;
+    },
+  },
+  {
+    // 4NM 5-tier, 23 x 11.6 x 65.7" expanded, rustic brown boards on black tube.
+    id: 'my-fold5', name: 'Folding shelf 5-tier 23"', cat: 'My Furniture', w: 1.92, d: 0.97, h: 5.48,
+    build: foldShelf(1.92, 0.97, 5.48, 5, 'rustic'),
+  },
+  {
+    // BHG "Fire" 4-tier, 23.6 x 11.6 x 49.8" expanded — same folding design.
+    id: 'my-fold4', name: 'Folding shelf 4-tier 23.6"', cat: 'My Furniture', w: 1.97, d: 0.97, h: 4.15,
+    build: foldShelf(1.97, 0.97, 4.15, 4, 'fireWood'),
+  },
+  {
+    // SimpleHouseware 3-tier, 17 x 12.5 x 31.5". Black mesh baskets on a tube
+    // frame, four casters, push handle over the top basket.
+    id: 'my-cart', name: 'Rolling utility cart 17"', cat: 'My Furniture', w: 1.42, d: 1.04, h: 2.63,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 1.42, D = 1.04, post = 0.05;
+      const bw = W - 0.1, bd = D - 0.1, rim = 0.36;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        g.add(B(post, 2.12, post, M2.inkSteel, sx * (W - post) / 2, 0.18, sz * (D - post) / 2));
+        // swivel caster: a stub bracket carrying the wheel
+        g.add(B(0.09, 0.1, 0.09, M2.inkSteel, sx * (W - post) / 2, 0.18, sz * (D - post) / 2));
+        const wheel = C(0.09, 0.06, M2.inkSteel, sx * (W - post) / 2, 0, sz * (D - post) / 2 + 0.03);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.y = 0.09;
+        g.add(wheel);
+      }
+      for (const y of [0.24, 1.02, 1.80]) wireBasket(g, bw, bd, y, rim, M2.inkSteel);
+      // push handle on the back edge, clearing the top basket
+      for (const sx of [-1, 1]) g.add(B(0.05, 0.32, 0.05, M2.inkSteel, sx * (W - post) / 2, 2.3, -(D - post) / 2));
+      g.add(B(W, 0.05, 0.05, M2.inkSteel, 0, 2.58, -(D - post) / 2));
+      return g;
+    },
+  },
   // ---- living ----
   { id: 'sofa', name: 'Sofa 84"', cat: 'Living', w: 7.0, d: 3.1, h: 2.7, build: seat(7.0, 3.1) },
   { id: 'loveseat', name: 'Loveseat 62"', cat: 'Living', w: 5.2, d: 3.0, h: 2.7, build: seat(5.2, 3.0) },
