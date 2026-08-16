@@ -274,40 +274,54 @@ export const CATALOG = [
   { id: 'my-fullxl', name: 'Full XL bed 54×80', cat: 'My Furniture', w: 4.5, d: 7.2, h: 3.6, build: bed(4.5, 7.2) },
   { id: 'my-queen', name: 'Queen bed 60×80', cat: 'My Furniture', w: 5.0, d: 7.2, h: 3.6, build: bed(5.0, 7.2) },
   {
-    // VASAGLE UKKS025B01, 31.5 x 15.7 x 66.9". Five boards: two open shelves
-    // below, the microwave/coffee tabletop at counter height, then a two-shelf
-    // hutch backed by the wire panel the S-hooks hang off.
+    // VASAGLE UKKS025B01, 31.5 x 15.7 x 66.9". Two open shelves and the
+    // appliance tabletop at full depth, then a hutch whose two shelves are only
+    // about half as deep and set back against the wire panel. Owner-verified:
+    // the tabletop takes the tallest bay of the three — it's the one that has
+    // to swallow a microwave — and the two hutch shelves are tighter.
     id: 'my-bakers', name: 'Bakers rack 31.5" (hutch)', cat: 'My Furniture', w: 2.63, d: 1.31, h: 5.58,
     build: () => {
       const g = new THREE.Group(), M2 = m();
       const W = 2.63, D = 1.31, H = 5.58, post = 0.08, bt = 0.07;
-      const ys = [0.30, 1.40, 2.85, 4.15, H - bt];
-      for (const y of ys) g.add(B(W - 0.02, bt, D - 2 * post, M2.rustic, 0, y, 0));
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        g.add(B(post, H, post, M2.inkSteel, sx * (W - post) / 2, 0, sz * (D - post) / 2));
+      const hutchD = 0.78;                          // ~9.5" against the 15.7" base
+      const zBack = -(D - post) / 2;
+      const zHutch = -D / 2 + hutchD / 2;           // hutch shelves hug the back
+      const zHutchFront = -D / 2 + hutchD - post / 2;
+      const deck = 2.85, mid = 4.37, top = H - bt;  // 17.4" over the deck, 12.8" above
+      const lows = [0.30, 1.40, deck];
+      for (const y of lows) g.add(B(W - 0.02, bt, D - 2 * post, M2.rustic, 0, y, 0));
+      for (const y of [mid, top]) g.add(B(W - 0.02, bt, hutchD - post, M2.rustic, 0, y, zHutch));
+      // rear posts run the full height; the front pair stops at the tabletop and
+      // the hutch picks up on its own set-back uprights
+      for (const sx of [-1, 1]) {
+        g.add(B(post, H, post, M2.inkSteel, sx * (W - post) / 2, 0, zBack));
+        g.add(B(post, deck + bt, post, M2.inkSteel, sx * (W - post) / 2, 0, -zBack));
+        g.add(B(post, H - deck - bt, post, M2.inkSteel, sx * (W - post) / 2, deck + bt, zHutchFront));
       }
       // frame rails under every board, plus a foot rail that keeps the base square
-      for (const y of [...ys, 0.08]) {
+      for (const y of [...lows, 0.08]) {
         for (const sz of [-1, 1]) g.add(B(W - 2 * post, 0.045, 0.045, M2.inkSteel, 0, y - 0.05, sz * (D - post) / 2));
       }
-      // wire back panel across the hutch: verticals on a ~2.5" pitch between
-      // two rails, which is what the hooks clip onto
-      const zBack = -(D - post) / 2;
-      const wireN = Q.tier === 'low' ? 7 : 13;
-      const span = W - 2 * post, wTop = H - bt, wBot = 2.92;
-      for (let i = 0; i < wireN; i++) {
-        g.add(B(0.022, wTop - wBot, 0.022, M2.inkSteel, -span / 2 + (i * span) / (wireN - 1), wBot, zBack));
+      for (const y of [mid, top]) {
+        for (const z of [zBack, zHutchFront]) g.add(B(W - 2 * post, 0.045, 0.045, M2.inkSteel, 0, y - 0.05, z));
       }
-      for (const y of [wBot, 4.12, wTop - 0.03]) g.add(B(span, 0.028, 0.028, M2.inkSteel, 0, y, zBack));
+      // wire back panel across the hutch: verticals on a ~2.5" pitch between
+      // rails, which is what the hooks clip onto
+      const wireN = Q.tier === 'low' ? 7 : 13;
+      const span = W - 2 * post, wBot = deck + bt;
+      for (let i = 0; i < wireN; i++) {
+        g.add(B(0.022, top - wBot, 0.022, M2.inkSteel, -span / 2 + (i * span) / (wireN - 1), wBot, zBack));
+      }
+      for (const y of [wBot, mid - 0.05, top - 0.03]) g.add(B(span, 0.028, 0.028, M2.inkSteel, 0, y, zBack));
       // power strip mounted on the back-right post above the tabletop
-      g.add(B(0.55, 0.3, 0.12, M2.inkSteel, W / 2 - 0.45, 2.98, zBack - 0.04));
+      g.add(B(0.55, 0.3, 0.12, M2.inkSteel, W / 2 - 0.45, 3.02, zBack - 0.04));
       // 14 S-hooks: eight clipped over the wire panel's mid rail, three hanging
       // off each hutch side bar
       for (let i = 0; i < 8; i++) {
-        g.add(sHook(M2.metal, -0.98 + i * 0.28, 4.1, zBack + 0.05));
+        g.add(sHook(M2.metal, -0.98 + i * 0.28, mid - 0.07, zBack + 0.05));
       }
-      for (const sx of [-1, 1]) for (const y of [3.35, 3.95, 4.55]) {
-        g.add(sHook(M2.metal, sx * ((W - post) / 2 + 0.02), y, 0));
+      for (const sx of [-1, 1]) for (const y of [3.55, 4.15, 5.05]) {
+        g.add(sHook(M2.metal, sx * ((W - post) / 2 + 0.02), y, zHutch));
       }
       return g;
     },

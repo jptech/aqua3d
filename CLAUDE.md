@@ -144,6 +144,13 @@ in the unit — if one reads wrong on site, the listing spec is what to re-check
 | `my-fold4` | BHG folding bookshelf, "Fire" 4-tier (B0D86LMRBH) | 23.6 × 11.6 × 49.8 |
 | `my-cart` | SimpleHouseware 3-tier rolling utility cart (B07V49ZP66) | 17 × 12.5 × 31.5 |
 
+Owner-verified on the bakers rack (`my-bakers`), against listing photos: the **top two
+shelves are the shallow hutch shelves**, set back against the wire panel at roughly half
+the base depth, so the frame steps back above the tabletop — the front posts stop at the
+tabletop and the hutch runs on its own set-back uprights. The **middle shelf (the
+tabletop) has the most vertical clearance** of the three upper bays; it's the appliance
+surface. Don't even out the shelf pitch.
+
 The two folding bookcases share `foldShelf()` — same design, different tier count and
 board colour. Their X-braced side panels are the folding linkage, so keep them: without
 the braces the pieces just read as generic bookcases. `my-fold4`'s height is the one
