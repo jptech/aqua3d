@@ -46,6 +46,14 @@ function m() {
     rustic: surfaceMaterial('oakFloor', { color: 0xa97a4e, roughness: 0.6, normalScale: 0.45, envMapIntensity: 0.7 }),
     fireWood: surfaceMaterial('oakFloor', { color: 0x93482a, roughness: 0.62, normalScale: 0.45, envMapIntensity: 0.7 }),
     inkSteel: new THREE.MeshStandardMaterial({ color: 0x1d1f22, roughness: 0.44, metalness: 0.6, envMapIntensity: 0.7 }),
+    // dark-gray upholstery, distinct from the blue-gray `fabricDark` used on the
+    // generic seating — the shoe bench's cushion is a true neutral charcoal
+    graphite: surfaceMaterial('linen', { color: 0x494c51, roughness: 0.94, normalScale: 0.8 }),
+    // Blueair's washable fabric pre-filter sleeve (the "Stockholm Fog" gray)
+    preFilter: surfaceMaterial('linen', { color: 0x9aa1a8, roughness: 0.96, normalScale: 0.9 }),
+    // coiled cotton rope: cream ground with the rice-brown bands wound into it
+    ropeWhite: surfaceMaterial('linen', { color: 0xeee6d7, roughness: 0.95, normalScale: 1.1 }),
+    ropeBrown: surfaceMaterial('linen', { color: 0xa9855c, roughness: 0.95, normalScale: 1.1 }),
     inkPanel: new THREE.MeshStandardMaterial({ color: 0x2b2d33, roughness: 0.62, envMapIntensity: 0.5 }),
     // carcass sits a shade darker than the fronts so the door reveals read as
     // shadow lines instead of vanishing into one black slab
@@ -108,17 +116,21 @@ function framedArt(w, hgt, seed, yCenter, x = 0) {
   return g;
 }
 
-function seat(w, d, { arms = true, backH = 2.6, name = '' } = {}) {
+// `armW` / `armTop` size the arms (width in plan, top height off the floor) and
+// `cushions` pins the seat-cushion count instead of deriving it from the width —
+// the arms and the cushion split are most of what distinguishes one sofa from
+// another at this level of detail, so a measured piece needs to state both.
+function seat(w, d, { arms = true, backH = 2.6, armW = 0.55, armTop = 1.7, cushions = null } = {}) {
   return () => {
     const g = new THREE.Group(), M2 = m();
-    const aw = arms ? 0.55 : 0;
+    const aw = arms ? armW : 0;
     const inner = w - 2 * aw;
     g.add(B(w, 0.6, d, M2.fabric, 0, 0.55, 0, 0.1 * SOFT));                      // plinth
     legs(g, w, d, 0.55, M2.metal, 0.3, 0.06);
     g.add(B(w, backH - 1.1, 0.6, M2.fabric, 0, 1.1, -d / 2 + 0.3, 0.14 * SOFT)); // back frame
     // separate seat and back cushions with a visible gap — one continuous slab
     // is what makes a procedural sofa read as a bench
-    const n = Math.max(1, Math.round(inner / 2.6));
+    const n = Math.max(1, cushions ?? Math.round(inner / 2.6));
     const cw = (inner - 0.09 * (n - 1)) / n;
     for (let i = 0; i < n; i++) {
       const cx = -inner / 2 + cw / 2 + i * (cw + 0.09);
@@ -127,7 +139,7 @@ function seat(w, d, { arms = true, backH = 2.6, name = '' } = {}) {
     }
     if (arms) {
       for (const sx of [-1, 1]) {
-        g.add(B(aw, 1.15, d, M2.fabric, sx * (w / 2 - aw / 2), 0.55, 0, 0.2 * SOFT));
+        g.add(B(aw, armTop - 0.55, d, M2.fabric, sx * (w / 2 - aw / 2), 0.55, 0, 0.2 * SOFT));
       }
     }
     return g;
@@ -207,6 +219,43 @@ function wireBasket(g, W, D, floorY, rim, mat) {
       }
     }
   }
+}
+
+// Flat steel-mesh shelf on a tube frame (the SONGMICS shoe-bench tiers): a rim
+// with closely spaced longitudinal wires and a few cross wires over them. The
+// wire pitch is the whole read — at board thickness it's just a shelf.
+function meshShelf(g, W, D, y, mat) {
+  const t = 0.032;
+  for (const sz of [-1, 1]) g.add(B(W, t, t, mat, 0, y, sz * (D - t) / 2));
+  for (const sx of [-1, 1]) g.add(B(t, t, D, mat, sx * (W - t) / 2, y, 0));
+  const n = Math.max(3, Math.round(W / (Q.tier === 'low' ? 0.3 : 0.15)));
+  for (let i = 1; i < n; i++) {
+    g.add(B(0.022, 0.022, D, mat, -W / 2 + (i * W) / n, y + 0.004, 0));
+  }
+  const c = Math.max(2, Math.round(D / 0.32));
+  for (let i = 1; i < c; i++) {
+    g.add(B(W, 0.022, 0.022, mat, 0, y + 0.026, -D / 2 + (i * D) / c));
+  }
+}
+
+// Flat leather strap handle riveted to a basket wall, bowing outward. The arc
+// lies in plan (ends on the wall, apex clear of it) and the tube is stretched
+// vertically so it reads as a strap rather than a piece of cord.
+function strapHandle(mat, sx, x, y, z) {
+  const holder = new THREE.Group();
+  const strap = new THREE.Mesh(
+    new THREE.TorusGeometry(0.2, 0.026, 4, Q.tier === 'low' ? 7 : 12, Math.PI), mat);
+  strap.rotation.x = Math.PI / 2;      // arc into plan: ends on ±x, apex on +z
+  strap.scale.z = 2.8;                 // round tube -> ~1.7" tall flat strap
+  strap.scale.y = 0.6;                 // shallow bow, ~1.5" clear of the wall
+  strap.castShadow = true;
+  holder.add(strap);
+  for (const s of [-1, 1]) {           // rivets where the strap meets the rope
+    holder.add(B(0.07, 0.07, 0.05, mat, s * 0.2, -0.035, -0.01));
+  }
+  holder.rotation.y = sx * (Math.PI / 2);   // apex swings out to the ±x face
+  holder.position.set(x, y, z);
+  return holder;
 }
 
 export const CATALOG = [
@@ -382,6 +431,111 @@ export const CATALOG = [
       // push handle on the back edge, clearing the top basket
       for (const sx of [-1, 1]) g.add(B(0.05, 0.32, 0.05, M2.inkSteel, sx * (W - post) / 2, 2.3, -(D - post) / 2));
       g.add(B(W, 0.05, 0.05, M2.inkSteel, 0, 2.58, -(D - post) / 2));
+      return g;
+    },
+  },
+  {
+    // The owner's sofa, measured: 94" x 42" overall with 14" arms, so the two
+    // seat cushions are ~33" each. Wide arms plus a two-cushion split is what
+    // separates it from the generic 84" three-seater — pinning the cushion
+    // count keeps the width-derived default from making it a three.
+    id: 'my-sofa', name: 'Sofa 94×42 (2-cushion)', cat: 'My Furniture', w: 7.83, d: 3.5, h: 2.8,
+    build: seat(7.83, 3.5, { backH: 2.8, armW: 1.17, armTop: 2.15, cushions: 2 }),
+  },
+  {
+    // Blueair Blue Pure 311i+ Max, 10.6 x 10.6 x 20.5" per the listing: a
+    // rounded-square tower wrapped in the washable fabric pre-filter (which is
+    // the intake, so it runs nearly the full height), capped by a white plastic
+    // top with a circular outlet grille and one control dial on the front edge.
+    id: 'my-purifier', name: 'Air purifier (Blueair 311i+)', cat: 'My Furniture',
+    w: 0.88, d: 0.88, h: 1.71,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 0.88, HT = 1.71, cap = 0.17, foot = 0.07;
+      g.add(B(W - 0.09, foot, W - 0.09, M2.inkCarcass, 0, 0, 0, 0.03 * SOFT));
+      g.add(B(W, HT - cap - foot, W, M2.preFilter, 0, foot, 0, 0.17 * SOFT));
+      g.add(B(W, cap, W, M2.white, 0, HT - cap, 0, 0.1 * SOFT));
+      // circular outlet: a recessed dark well with concentric rings across it
+      g.add(C(0.3, 0.04, M2.inkCarcass, 0, HT - 0.06));
+      for (const r of [0.12, 0.2, 0.28]) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(r, 0.016, 4, Q.tier === 'low' ? 10 : 18), M2.white);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = HT - 0.035;
+        g.add(ring);
+      }
+      g.add(C(0.075, 0.035, M2.inkCarcass, 0, HT - 0.025, W / 2 - 0.17));   // control dial
+      g.add(B(0.24, 0.022, 0.035, M2.screen, 0, HT - 0.032, W / 2 - 0.05)); // status LED bar
+      return g;
+    },
+  },
+  {
+    // SONGMICS ULBS576B33 shoe bench, 23.6 x 11.8 x 19.7" per the listing:
+    // ink-black steel tube frame, two mesh shoe tiers, dark-gray padded seat.
+    // The seat sits on the top frame rails, so the cushion thickness comes out
+    // of the 19.7" rather than adding to it.
+    id: 'my-shoebench', name: 'Shoe bench 23.6" (cushion)', cat: 'My Furniture',
+    w: 1.97, d: 0.98, h: 1.64,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 1.97, D = 0.98, HT = 1.64, post = 0.055, cush = 0.28;
+      const frame = HT - cush;
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        g.add(B(post, frame, post, M2.inkSteel, sx * (W - post) / 2, 0, sz * (D - post) / 2));
+      }
+      // perimeter rails: under the seat, at each shoe tier, and a foot rail
+      for (const y of [frame - 0.06, 0.92, 0.45, 0.07]) {
+        for (const sz of [-1, 1]) {
+          g.add(B(W - 2 * post, 0.04, 0.04, M2.inkSteel, 0, y, sz * (D - post) / 2));
+        }
+        for (const sx of [-1, 1]) {
+          g.add(B(0.04, 0.04, D - 2 * post, M2.inkSteel, sx * (W - post) / 2, y, 0));
+        }
+      }
+      for (const y of [0.45, 0.92]) meshShelf(g, W - 2 * post, D - 2 * post, y + 0.04, M2.inkSteel);
+      g.add(B(W, cush, D, M2.graphite, 0, frame, 0, 0.11 * SOFT));
+      return g;
+    },
+  },
+  {
+    // AINUOQUI tall rope hamper, 17 x 13.8 x 22" per the listing: cotton rope
+    // coiled into a rounded rectangle, rice-brown bands over a cream ground,
+    // with a flat leather strap handle on each short side. Each coil is a ring
+    // of four bars — a solid box at this size just reads as a carton.
+    id: 'my-hamper', name: 'Rope laundry hamper 17"', cat: 'My Furniture',
+    w: 1.42, d: 1.15, h: 1.83,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 1.42, D = 1.15, HT = 1.83;
+      const rope = Q.tier === 'low' ? 0.17 : 0.11;      // one wound coil
+      const base = 0.07, cor = 0.17;                    // cor = corner radius in plan
+      const n = Math.max(4, Math.round((HT - base) / rope));
+      g.add(B(W - 0.2, base, D - 0.2, M2.ropeWhite, 0, 0));       // woven bottom
+      let rimW = W, rimY = 0;
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 1 : i / (n - 1);
+        const s = 0.96 + 0.04 * t;                                 // slight flare to the rim
+        const w = W * s, d = D * s, hw = w / 2, hd = d / 2;
+        const y = base + i * rope;
+        // two brown bands wound in low and high on the body, plus the rim coil
+        const band = (t > 0.26 && t < 0.36) || (t > 0.58 && t < 0.64) || t > 0.95;
+        const mat = band ? M2.ropeBrown : M2.ropeWhite;
+        const bar = rope * 0.96, bev = rope * 0.4 * SOFT;
+        for (const sx of [-1, 1]) g.add(B(bar, bar, d - 2 * cor, mat, sx * (hw - bar / 2), y, 0, bev));
+        for (const sz of [-1, 1]) g.add(B(w - 2 * cor, bar, bar, mat, 0, y, sz * (hd - bar / 2), bev));
+        // 45° runs across each corner, so a coil is a rounded rectangle and the
+        // stack reads as wound rope instead of a slatted crate
+        const k = (cor + bar / 2) / 2, len = 1.414 * (cor - bar / 2);
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+          const c = B(bar, bar, len, mat, sx * (hw - k), y, sz * (hd - k), bev);
+          c.rotation.y = sx === sz ? -Math.PI / 4 : Math.PI / 4;
+          g.add(c);
+        }
+        rimW = w; rimY = y;
+      }
+      for (const sx of [-1, 1]) {
+        g.add(strapHandle(M2.leather, sx, sx * (rimW / 2 - 0.02), rimY - 0.2, 0));
+      }
       return g;
     },
   },
