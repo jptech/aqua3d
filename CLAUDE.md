@@ -180,11 +180,12 @@ Two arrays in main.js, both reachable from the sidebar and both kept collision-f
 
 - `MY_FURNITURE` — **the default**, restored by the "My furniture" button and loaded on
   a first visit. The owner's real pieces at measured sizes, following the arrangement
-  they exported from the app on 2026-08-16: queen + big sit-stand desk in the master,
+  they exported from the app on 2026-08-17: queen + big sit-stand desk in the master,
   94" sofa on the east glass facing the TV console on the divider, owned dining table
-  under the north windows, bakers rack and rolling cart in the kitchen, Full XL +
-  small desk + pantry in bedroom 2, hamper in the walk-in, shoe bench by the entry
-  door. Balcony empty — nothing is out there yet.
+  under the north windows, rolling cart in the kitchen, bakers rack (as the drop zone)
+  and shoe bench in the foyer, hamper in the laundry closet south of the W/D stack, a
+  pantry cabinet doing linen duty in bath 2, and queen + small desk + pantry + cart +
+  folding shelf in bedroom 2. Balcony empty — nothing is out there yet.
 - `MODEL_UNIT` — the building's model unit, restored by the "Model unit" button. Traced
   from the Matterport scan, so it uses generic catalog pieces, not the `my-*` ones. Its
   balcony is empty because the real model unit's is.
@@ -194,6 +195,10 @@ the NE column (ends z 4.8) and the countertop column (starts z 13.85). The model
 sofa plus side table use ~8.7 ft of it and the owner's 94" sofa uses 7.83 — either way,
 nudging along z trips the collision pad. The owner's sofa is also 3.5 ft deep against
 glazing at x 27.86, which leaves 0.11 ft behind it.
+
+Bedroom 2 is the other tight spot now that it carries a queen plus desk, chair, pantry,
+cart and folding shelf: several of those clear each other and the east/south walls by
+0.1–0.5 ft, so treat any position there as load-bearing rather than approximate.
 
 After editing either, reload with `localStorage.removeItem('aqua3d.layout.v6')` (a saved
 layout wins over the default) and check that no red collision pads appear. There is a

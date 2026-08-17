@@ -614,25 +614,33 @@ const MODEL_UNIT = [
 ];
 
 // THE DEFAULT — the owner's real pieces at measured sizes (the `my-*` catalog
-// entries), following the arrangement exported from the app on 2026-08-16.
-// Cleaned up from that export in four places: the 84" generic sofa became the
-// measured 94" `my-sofa` (and slid west so it clears the east glazing), the
-// second generic queen became the Full XL that's actually owned, the folding
-// 4-tier was turned to face the room instead of the west wall, and each
-// sit-stand desk got a chair. Balcony left empty — nothing is out there yet.
+// entries), following the arrangement exported from the app on 2026-08-17.
+// That pass moved the storage pieces out of the kitchen and the walk-in: the
+// bakers rack is now the foyer's drop zone, the hamper lives in the laundry
+// closet behind the bifold, and a second pantry / cart / desk cluster fills
+// bedroom 2. Balcony left empty — nothing is out there yet.
+//
+// Three positions were nudged off the export, all for clearance, none for taste:
+//  - hamper z 38.45 -> 37.9, so it sits inside the laundry bifold's opening
+//    (z 33.6-38.6) instead of half behind the south jamb.
+//  - bath-2 pantry z 28.56 -> 29.6, onto the south wall it already faces; it
+//    was floating 1.1 ft off it.
+//  - bedroom-2 queen z 33.22 -> 33.25; its headboard cleared the north wall by
+//    1/4", which is inside the margin a stray drag would eat.
 //
 // The tight spots, so a nudge doesn't quietly trip the collision pad:
 //  - sofa: only 9.05 ft clear between the NE column (ends z 4.8) and the
 //    countertop column (starts z 13.85), and the sofa is 7.83 of it.
 //  - sofa depth: 3.5 ft off the east glazing at x 27.86 leaves 0.11 ft.
-//  - fold5 / desk-s in bedroom 2 both squeeze past the corner column
-//    (x 25.7-27.86, z 30.7-32.1).
+//  - bedroom 2 runs everything close: fold5 clears the corner column
+//    (x 25.7-27.86, z 30.7-32.1) by 0.16 ft, and the cart and desk-s clear the
+//    east wall by ~0.1 and the south wall by 0.27.
 const MY_FURNITURE = [
   // ---- living: seating on the east glass, TV on the divider opposite ----
   { id: 'my-sofa', x: 26.0, z: 9.35, r: -HPI },
   { id: 'rug58', x: 22.0, z: 9.35, r: HPI },
-  { id: 'my-tv', x: 13.38, z: 9.8, r: HPI },
-  { id: 'my-purifier', x: 12.85, z: 13.1, r: 0 },
+  { id: 'my-tv', x: 13.06, z: 9.29, r: HPI },
+  { id: 'my-purifier', x: 12.9, z: 12.57, r: 0 },
   { id: 'lamp', x: 13.07, z: 4.03, r: 0 },
   // ---- dining: owned 47×28 table under the north windows, three chairs ----
   { id: 'my-dining', x: 20.52, z: 2.33, r: Math.PI },
@@ -641,24 +649,27 @@ const MY_FURNITURE = [
   { id: 'chair', x: 20.52, z: 3.65, r: Math.PI },
   { id: 'stool', x: 19.8, z: 13.35, r: 0 },
   { id: 'stool', x: 22.2, z: 13.35, r: 0 },
-  // ---- kitchen: bakers rack on the divider, cart by the east window ----
-  { id: 'my-bakers', x: 12.96, z: 18.22, r: HPI },
-  { id: 'my-cart', x: 27.04, z: 17.61, r: HPI },
+  // ---- kitchen: just the rolling cart by the east window ----
+  { id: 'my-cart', x: 27.04, z: 17.61, r: -HPI },
   // ---- master: queen on the west wall, big desk under the north windows ----
   { id: 'my-queen', x: 4.55, z: 9.83, r: HPI },
   { id: 'my-desk-l', x: 8.84, z: 1.98, r: 0 },
   { id: 'taskchair', x: 8.84, z: 4.1, r: Math.PI },
   { id: 'my-fold4', x: 1.21, z: 2.14, r: HPI },
-  // ---- walk-in: hamper in the corner clear of the inward-swinging door ----
-  { id: 'my-hamper', x: 5.5, z: 22.2, r: 0 },
-  // ---- foyer: shoe bench on the south wall, east of the entry door swing ----
+  // ---- bath 2: pantry cabinet used as the linen cupboard, on the south wall ----
+  { id: 'my-pantry', x: 20.31, z: 29.6, r: Math.PI },
+  // ---- foyer: bakers rack on the bath wall, shoe bench beside the entry door,
+  //      hamper inside the laundry closet south of the W/D stack ----
+  { id: 'my-bakers', x: 8.39, z: 33.45, r: 0 },
   { id: 'my-shoebench', x: 11.9, z: 39.18, r: Math.PI },
-  // ---- bedroom 2: Full XL + the small sit-stand desk on the east glass ----
-  { id: 'my-fullxl', x: 17.41, z: 33.28, r: HPI },
-  { id: 'my-fold5', x: 24.47, z: 31.49, r: 0 },
-  { id: 'my-desk-s', x: 26.8, z: 34.4, r: -HPI },
-  { id: 'taskchair', x: 25.0, z: 34.4, r: HPI },
-  { id: 'my-pantry', x: 25.97, z: 38.79, r: Math.PI },
+  { id: 'my-hamper', x: 4.53, z: 37.9, r: 0 },
+  // ---- bedroom 2: queen on the west wall, desk + storage along the south/east ----
+  { id: 'my-queen', x: 17.31, z: 33.25, r: HPI },
+  { id: 'my-fold5', x: 26.75, z: 32.74, r: 0 },
+  { id: 'my-cart', x: 27.24, z: 36.41, r: -HPI },
+  { id: 'my-desk-s', x: 25.57, z: 38.47, r: Math.PI },
+  { id: 'taskchair', x: 25.36, z: 37.02, r: 0 },
+  { id: 'my-pantry', x: 21.91, z: 38.98, r: Math.PI },
 ];
 
 // load saved layout, or the owner's furniture on a first visit
