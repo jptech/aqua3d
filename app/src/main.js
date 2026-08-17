@@ -695,6 +695,13 @@ const MODEL_UNIT = [
 //  - bedroom-2 queen z 33.22 -> 33.25; its headboard cleared the north wall by
 //    1/4", which is inside the margin a stray drag would eat.
 //
+// The kitchen bin is against the divider wall beside the fridge (z 19.7-20.9)
+// rather than in the galley aisle. That stretch of the living->hall walkway is
+// its widest — 4'1" — so a 10"-deep bin leaves 3'4" and costs nothing at the
+// route's actual pinch, which is 2'11" up at z 13.5 where the peninsula's NW
+// corner, the TV console and the purifier close in. The galley aisle itself is
+// a uniform 3'2", so anything parked in it drops the working aisle to 2'4".
+//
 // The tight spots, so a nudge doesn't quietly trip the collision pad:
 //  - sofa: only 9.05 ft clear between the NE column (ends z 4.8) and the
 //    countertop column (starts z 13.85), and the sofa is 7.83 of it.
@@ -716,8 +723,9 @@ const MY_FURNITURE = [
   { id: 'chair', x: 20.52, z: 3.65, r: Math.PI },
   { id: 'stool', x: 19.8, z: 13.35, r: 0 },
   { id: 'stool', x: 22.2, z: 13.35, r: 0 },
-  // ---- kitchen: just the rolling cart by the east window ----
+  // ---- kitchen: rolling cart by the east window, bin against the divider ----
   { id: 'my-cart', x: 27.04, z: 17.61, r: -HPI },
+  { id: 'my-trash', x: 12.75, z: 20.3, r: HPI },
   // ---- master: queen on the west wall, big desk under the north windows ----
   { id: 'my-queen', x: 4.55, z: 9.83, r: HPI },
   { id: 'my-desk-l', x: 8.84, z: 1.98, r: 0 },

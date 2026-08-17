@@ -46,6 +46,9 @@ function m() {
     rustic: surfaceMaterial('oakFloor', { color: 0xa97a4e, roughness: 0.6, normalScale: 0.45, envMapIntensity: 0.7 }),
     fireWood: surfaceMaterial('oakFloor', { color: 0x93482a, roughness: 0.62, normalScale: 0.45, envMapIntensity: 0.7 }),
     inkSteel: new THREE.MeshStandardMaterial({ color: 0x1d1f22, roughness: 0.44, metalness: 0.6, envMapIntensity: 0.7 }),
+    // brushed stainless, matched to the kitchen appliances in apartment.js — a
+    // low envMapIntensity is what keeps it from blowing out white under the sky
+    steel: new THREE.MeshStandardMaterial({ color: 0x9aa0a5, roughness: 0.42, metalness: 0.85, envMapIntensity: 0.55 }),
     // dark-gray upholstery, distinct from the blue-gray `fabricDark` used on the
     // generic seating — the shoe bench's cushion is a true neutral charcoal
     graphite: surfaceMaterial('linen', { color: 0x494c51, roughness: 0.94, normalScale: 0.8 }),
@@ -431,6 +434,29 @@ export const CATALOG = [
       // push handle on the back edge, clearing the top basket
       for (const sx of [-1, 1]) g.add(B(0.05, 0.32, 0.05, M2.inkSteel, sx * (W - post) / 2, 2.3, -(D - post) / 2));
       g.add(B(W, 0.05, 0.05, M2.inkSteel, 0, 2.58, -(D - post) / 2));
+      return g;
+    },
+  },
+  {
+    // The owner's kitchen bin, measured: 15 x 10 x 25". That footprint on that
+    // height is a slim step can, so it's modelled as one — stainless body,
+    // hinged lid sitting slightly proud over a shadow gap, plastic base with a
+    // toe recess, and the pedal across the front of it. If it turns out to be a
+    // plastic open-top or a swing lid, the lid and pedal are the only parts to
+    // redo; the footprint is what the layout depends on.
+    id: 'my-trash', name: 'Kitchen trash can 15×10', cat: 'My Furniture',
+    w: 1.25, d: 0.83, h: 2.08,
+    build: () => {
+      const g = new THREE.Group(), M2 = m();
+      const W = 1.25, D = 0.83, HT = 2.08;
+      const base = 0.15, lid = 0.12, gap = 0.03;
+      const body = HT - base - lid - gap;
+      g.add(B(W - 0.09, base, D - 0.07, M2.inkCarcass, 0, 0, 0, 0.03 * SOFT));
+      g.add(B(W, body, D, M2.steel, 0, base, 0, 0.06 * SOFT));
+      g.add(B(W - 0.04, gap, D - 0.04, M2.inkCarcass, 0, base + body, 0));   // shadow gap
+      g.add(B(W + 0.03, lid, D + 0.03, M2.steel, 0, base + body + gap, 0, 0.05 * SOFT));
+      g.add(B(W * 0.34, 0.07, 0.07, M2.inkSteel, 0, HT - 0.1, -D / 2 - 0.01)); // lid hinge
+      g.add(B(W * 0.45, 0.055, 0.07, M2.inkSteel, 0, 0.055, D / 2 - 0.01));    // foot pedal
       return g;
     },
   },

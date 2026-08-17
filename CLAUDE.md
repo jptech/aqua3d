@@ -143,7 +143,9 @@ The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces th
 actually owns, at real measured dimensions — don't resize them, and prefer them over
 generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 47"×28"
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
-(62" tall), Full XL bed, Queen bed, and the sofa below.
+(62" tall), Full XL bed, Queen bed, a 15"×10"×25" rectangular kitchen bin (`my-trash`,
+modelled as a stainless slim step can — the finish is an assumption, the footprint is
+not), and the sofa below.
 
 `my-sofa` is the owner's own sofa, measured: **94" wide × 42" deep, two large seat
 cushions, two wide arms at ~14" each** — so the cushions come out ~33" apart. It is
@@ -209,6 +211,22 @@ glazing at x 27.86, which leaves 0.11 ft behind it.
 Bedroom 2 is the other tight spot now that it carries a queen plus desk, chair, pantry,
 cart and folding shelf: several of those clear each other and the east/south walls by
 0.1–0.5 ft, so treat any position there as load-bearing rather than approximate.
+
+Circulation, measured as the widest free disc that can traverse the living → hall route
+(so it accounts for corners, not just wall-to-wall spans):
+
+- The route's narrowest point is **2'11" at z ≈ 13.5**, where the peninsula's NW corner,
+  the TV console and the air purifier close in on each other. Everything downstream is
+  wider, so that spot is the one to protect.
+- The west walkway past the fridge (z 18–21.5) is the widest stretch at **4'1"–4'6"** —
+  which is why the kitchen bin lives there and costs nothing.
+- The kitchen→hall throat (z 22–22.75) is **3'11"**; the hall spine is 4'3"–4'7".
+- The **galley aisle** (peninsula ↔ range wall) is a uniform **3'2"** for its whole
+  length. It is *not* on the living→hall route — you can detour through the cross aisle —
+  so route metrics won't flag anything parked in it, but it drops the working aisle to
+  2'4". Check that separately.
+- The bakers rack in its old kitchen spot cost 0.48 ft off the route pinch (2'11" → 2'5"),
+  which is the most of anything tried there.
 
 After editing either, reload with `localStorage.removeItem('aqua3d.layout.v6')` (a saved
 layout wins over the default) and check that no red collision pads appear. There is a
