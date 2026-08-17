@@ -174,12 +174,56 @@ const interactions = new Interactions({
   scene, camera, dom: renderer.domElement, controls,
   world: { obstacles: world.obstacles, balconyPoly: world.balconyPoly },
   onChange: () => {
+    noteChange();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       localStorage.setItem(STORAGE, JSON.stringify(interactions.serialize()));
     }, 400);
   },
 });
+
+// ---------- undo ----------
+// onChange fires *after* a mutation, so the stack holds the state as it was
+// before it. One user action can fire onChange several times in the same tick
+// (load() clears and then refills), so the entry is coalesced into a microtask
+// and dropped entirely if the serialized layout came out unchanged.
+const UNDO_MAX = 60;
+const undoStack = [];
+let lastLayout = null;      // serialized state as of the last settled change
+let undoPending = false;    // an entry is already queued for this tick
+let undoing = false;        // suppress bookkeeping while an undo replays
+
+function noteChange() {
+  if (undoing || undoPending) return;
+  undoPending = true;
+  const before = lastLayout;
+  queueMicrotask(() => {
+    const now = JSON.stringify(interactions.serialize());
+    if (before !== null && before !== now) {
+      undoStack.push(before);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+    }
+    lastLayout = now;
+    undoPending = false;
+    syncUndoBtn();
+  });
+}
+
+function undo() {
+  const prev = undoStack.pop();
+  if (prev === undefined) return;
+  undoing = true;
+  interactions.load(JSON.parse(prev));   // still triggers the debounced save
+  interactions.deselect();
+  undoing = false;
+  lastLayout = prev;
+  syncUndoBtn();
+}
+
+function syncUndoBtn() {
+  const b = document.getElementById('b-undo');
+  if (b) b.disabled = undoStack.length === 0;
+}
 
 // ---------- camera views ----------
 const VIEWS = {
@@ -476,6 +520,15 @@ $('#t-labels').onclick = (e) => {
   e.target.classList.toggle('on', on);
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
+// Wall snap is on by default but persisted, since it's the one toggle that
+// changes where a drag actually lands — someone placing a piece deliberately
+// off the wall wants it to stay off across reloads.
+function setSnap(on, persist = true) {
+  interactions.snapWalls = on;
+  document.getElementById('t-snap').classList.toggle('on', on);
+  if (persist) saveUI({ snap: on });
+}
+$('#t-snap').onclick = () => setSnap(!interactions.snapWalls);
 
 // ---------- render quality ----------
 // Tier decides how geometry and textures are built, so switching reloads. The
@@ -522,6 +575,18 @@ function loadPreset(name, layout) {
 $('#b-sample').onclick = () => loadPreset('model unit', MODEL_UNIT);
 $('#b-mine').onclick = () => loadPreset('my furniture', MY_FURNITURE);
 $('#b-clear').onclick = () => { if (confirm('Remove all furniture?')) interactions.clear(); };
+$('#b-undo').onclick = () => undo();
+syncUndoBtn();
+
+// Ctrl/Cmd+Z lives on the window rather than in Interactions' own key handler,
+// which only runs when something is selected — undo has to work after a delete.
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    e.preventDefault();
+    undo();
+  }
+});
 
 // ---------- export / import ----------
 $('#b-export').onclick = () => {
@@ -614,25 +679,42 @@ const MODEL_UNIT = [
 ];
 
 // THE DEFAULT — the owner's real pieces at measured sizes (the `my-*` catalog
-// entries), following the arrangement exported from the app on 2026-08-16.
-// Cleaned up from that export in four places: the 84" generic sofa became the
-// measured 94" `my-sofa` (and slid west so it clears the east glazing), the
-// second generic queen became the Full XL that's actually owned, the folding
-// 4-tier was turned to face the room instead of the west wall, and each
-// sit-stand desk got a chair. Balcony left empty — nothing is out there yet.
+// entries), following the arrangement exported from the app on 2026-08-17.
+// That pass moved the storage pieces out of the kitchen and the walk-in: the
+// bakers rack is now the foyer's drop zone, the hamper lives in the laundry
+// closet behind the bifold, and a second pantry / cart / desk cluster fills
+// bedroom 2. Balcony left empty — nothing is out there yet.
+//
+// The export also had a third pantry cabinet loose in bath 2; the owner has
+// confirmed that one was a stray, so it isn't here. Two carts and two queens
+// are deliberate.
+//
+// Two positions were nudged off the export, both for clearance, neither for taste:
+//  - hamper z 38.45 -> 37.9, so it sits inside the laundry bifold's opening
+//    (z 33.6-38.6) instead of half behind the south jamb.
+//  - bedroom-2 queen z 33.22 -> 33.25; its headboard cleared the north wall by
+//    1/4", which is inside the margin a stray drag would eat.
+//
+// The kitchen bin is against the divider wall beside the fridge (z 19.7-20.9)
+// rather than in the galley aisle. That stretch of the living->hall walkway is
+// its widest — 4'1" — so a 10"-deep bin leaves 3'4" and costs nothing at the
+// route's actual pinch, which is 2'11" up at z 13.5 where the peninsula's NW
+// corner, the TV console and the purifier close in. The galley aisle itself is
+// a uniform 3'2", so anything parked in it drops the working aisle to 2'4".
 //
 // The tight spots, so a nudge doesn't quietly trip the collision pad:
 //  - sofa: only 9.05 ft clear between the NE column (ends z 4.8) and the
 //    countertop column (starts z 13.85), and the sofa is 7.83 of it.
 //  - sofa depth: 3.5 ft off the east glazing at x 27.86 leaves 0.11 ft.
-//  - fold5 / desk-s in bedroom 2 both squeeze past the corner column
-//    (x 25.7-27.86, z 30.7-32.1).
+//  - bedroom 2 runs everything close: fold5 clears the corner column
+//    (x 25.7-27.86, z 30.7-32.1) by 0.16 ft, and the cart and desk-s clear the
+//    east wall by ~0.1 and the south wall by 0.27.
 const MY_FURNITURE = [
   // ---- living: seating on the east glass, TV on the divider opposite ----
   { id: 'my-sofa', x: 26.0, z: 9.35, r: -HPI },
   { id: 'rug58', x: 22.0, z: 9.35, r: HPI },
-  { id: 'my-tv', x: 13.38, z: 9.8, r: HPI },
-  { id: 'my-purifier', x: 12.85, z: 13.1, r: 0 },
+  { id: 'my-tv', x: 13.06, z: 9.29, r: HPI },
+  { id: 'my-purifier', x: 12.9, z: 12.57, r: 0 },
   { id: 'lamp', x: 13.07, z: 4.03, r: 0 },
   // ---- dining: owned 47×28 table under the north windows, three chairs ----
   { id: 'my-dining', x: 20.52, z: 2.33, r: Math.PI },
@@ -641,24 +723,26 @@ const MY_FURNITURE = [
   { id: 'chair', x: 20.52, z: 3.65, r: Math.PI },
   { id: 'stool', x: 19.8, z: 13.35, r: 0 },
   { id: 'stool', x: 22.2, z: 13.35, r: 0 },
-  // ---- kitchen: bakers rack on the divider, cart by the east window ----
-  { id: 'my-bakers', x: 12.96, z: 18.22, r: HPI },
-  { id: 'my-cart', x: 27.04, z: 17.61, r: HPI },
+  // ---- kitchen: rolling cart by the east window, bin against the divider ----
+  { id: 'my-cart', x: 27.04, z: 17.61, r: -HPI },
+  { id: 'my-trash', x: 12.75, z: 20.3, r: HPI },
   // ---- master: queen on the west wall, big desk under the north windows ----
   { id: 'my-queen', x: 4.55, z: 9.83, r: HPI },
   { id: 'my-desk-l', x: 8.84, z: 1.98, r: 0 },
   { id: 'taskchair', x: 8.84, z: 4.1, r: Math.PI },
   { id: 'my-fold4', x: 1.21, z: 2.14, r: HPI },
-  // ---- walk-in: hamper in the corner clear of the inward-swinging door ----
-  { id: 'my-hamper', x: 5.5, z: 22.2, r: 0 },
-  // ---- foyer: shoe bench on the south wall, east of the entry door swing ----
+  // ---- foyer: bakers rack on the bath wall, shoe bench beside the entry door,
+  //      hamper inside the laundry closet south of the W/D stack ----
+  { id: 'my-bakers', x: 8.39, z: 33.45, r: 0 },
   { id: 'my-shoebench', x: 11.9, z: 39.18, r: Math.PI },
-  // ---- bedroom 2: Full XL + the small sit-stand desk on the east glass ----
-  { id: 'my-fullxl', x: 17.41, z: 33.28, r: HPI },
-  { id: 'my-fold5', x: 24.47, z: 31.49, r: 0 },
-  { id: 'my-desk-s', x: 26.8, z: 34.4, r: -HPI },
-  { id: 'taskchair', x: 25.0, z: 34.4, r: HPI },
-  { id: 'my-pantry', x: 25.97, z: 38.79, r: Math.PI },
+  { id: 'my-hamper', x: 4.53, z: 37.9, r: 0 },
+  // ---- bedroom 2: queen on the west wall, desk + storage along the south/east ----
+  { id: 'my-queen', x: 17.31, z: 33.25, r: HPI },
+  { id: 'my-fold5', x: 26.75, z: 32.74, r: 0 },
+  { id: 'my-cart', x: 27.24, z: 36.41, r: -HPI },
+  { id: 'my-desk-s', x: 25.57, z: 38.47, r: Math.PI },
+  { id: 'taskchair', x: 25.36, z: 37.02, r: 0 },
+  { id: 'my-pantry', x: 21.91, z: 38.98, r: Math.PI },
 ];
 
 // load saved layout, or the owner's furniture on a first visit
@@ -673,6 +757,7 @@ try {
 // only explicit toggles save.
 setLock(uiState.locked ?? COARSE, false);
 setSidebar(uiState.sidebar ?? !(COARSE || SMALL()), false);
+setSnap(uiState.snap ?? true, false);
 
 // ---------- wall auto-fade ----------
 const SIDE_NORMALS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };

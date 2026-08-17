@@ -179,6 +179,7 @@
     <button class="tbtn" id="t-ceiling">Ceiling</button>
     <button class="tbtn on" id="t-labels">Labels</button>
     <button class="tbtn" id="t-grid">Grid</button>
+    <button class="tbtn on" id="t-snap" title="Snap a dragged piece flush against a nearby wall — hold Shift while dragging for the ½ ft grid instead">🧲 Snap</button>
     <button class="tbtn" id="t-plan" title="2D floorplan view (P)">▦ 2D Plan</button>
     <button class="tbtn" id="t-quality" title="Render quality">◐ Auto</button>
   </div>
@@ -205,6 +206,7 @@
     <button id="b-mine" title="Restore the default layout — the owner's real furniture at measured sizes">My furniture</button>
   </div>
   <div class="foot">
+    <button id="b-undo" title="Undo the last change (Ctrl+Z)">↶ Undo</button>
     <button id="b-clear" title="Remove all furniture">Clear</button>
   </div>
   <input type="file" id="import-file" accept=".json,application/json" style="display:none">
@@ -224,7 +226,7 @@
 <button id="walk-exit" class="panel">✕ Exit walk</button>
 
 <div id="hints" class="panel">
-  <b>Drag</b> furniture to move · <b>Q / E</b> rotate · <b>Shift</b> snap ½ ft · <b>D</b> duplicate · <b>Del</b> remove · orbit with mouse, scroll to zoom
+  <b>Drag</b> furniture to move · <b>Q / E</b> rotate · <b>Shift</b> snap ½ ft · <b>D</b> duplicate · <b>Del</b> remove · <b>Ctrl+Z</b> undo · orbit with mouse, scroll to zoom
 </div>
 
 <script type="importmap">

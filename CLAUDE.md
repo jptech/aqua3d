@@ -34,7 +34,7 @@ walls, not the model unit's gray-blue.
 | `src/plan.js` | **The floorplan model.** All coordinates in feet (1 unit = 1 ft), origin at the exterior NW corner, +x east, +z south. Wall lines (`X`, `Z`, `SUITE`), room/floor rects (`ROOMS`, incl. `th-*` door thresholds), balcony curve, `WALL_RECTS` obstacle registry (filled at build time). |
 | `src/apartment.js` | Builds walls/glazing/doors/fixtures from plan.js. `wall()` and `glazing()` auto-register obstacle rects; fixtures call `reg()` manually. |
 | `src/furniture.js` | Procedural catalog. Real-world footprints (`w`×`d` ft); flags: `flat` (rugs), `tuck`/`surface` (chairs may overlap tables). |
-| `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles. Has an `enabled` flag other tools toggle. |
+| `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles, snap-to-wall on drag. Has an `enabled` flag other tools toggle and a `snapWalls` flag the 🧲 button owns. |
 | `src/measure.js` | Two-click measuring tape. |
 | `src/main.js` | Scene/lights/skyline, PMREM environment map, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence, adaptive resolution. |
 | `src/textures.js` | Canvas surfaces (carpet, tile, granite, maple/walnut, plaster, concrete, glass tile, linen) each with a real-world tile size + Sobel-derived normal map; equirect sky; contact-shadow blob. |
@@ -44,8 +44,17 @@ walls, not the model unit's gray-blue.
 ## Invariants — keep these when editing geometry
 
 - **Everything routes through `WALL_RECTS`**: furniture collision tinting, dimension
-  rays, and walk-mode collision all read the same registry. New solid geometry must be
-  registered (walls do it automatically); never register door openings.
+  rays, walk-mode collision and snap-to-wall all read the same registry. New solid
+  geometry must be registered (walls do it automatically); never register door openings.
+- Snap-to-wall pulls a dragged piece's nearest face to within `SNAP_GAP` (0.05 ft) of a
+  wall rect, not flush to it — baseboards project 0.045 ft past the wall face and are
+  *not* registered separately, so a truly flush piece clips the trim. Hold Shift to get
+  the ½ ft grid instead; the two snaps are deliberately exclusive.
+- Undo (main.js) snapshots via `serialize()` on `onChange`, which fires *after* a
+  mutation, so the stack holds pre-change states. One user action can fire `onChange`
+  several times in a tick (`load()` clears then refills), so entries are coalesced in a
+  microtask — anything new that mutates the layout gets undo for free, but only if it
+  routes through `onChange`.
 - **Walk mode needs floor continuity**: every door/opening in a registered wall needs a
   matching `th-*` threshold rect in `ROOMS`, or you can't walk through it.
 - **Floor rects must not overlap** (z-fighting) and walls sit on y=0 over them.
@@ -134,7 +143,9 @@ The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces th
 actually owns, at real measured dimensions — don't resize them, and prefer them over
 generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 47"×28"
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
-(62" tall), Full XL bed, Queen bed, and the sofa below.
+(62" tall), Full XL bed, Queen bed, a 15"×10"×25" rectangular kitchen bin (`my-trash`,
+modelled as a stainless slim step can — the finish is an assumption, the footprint is
+not), and the sofa below.
 
 `my-sofa` is the owner's own sofa, measured: **94" wide × 42" deep, two large seat
 cushions, two wide arms at ~14" each** — so the cushions come out ~33" apart. It is
@@ -180,11 +191,13 @@ Two arrays in main.js, both reachable from the sidebar and both kept collision-f
 
 - `MY_FURNITURE` — **the default**, restored by the "My furniture" button and loaded on
   a first visit. The owner's real pieces at measured sizes, following the arrangement
-  they exported from the app on 2026-08-16: queen + big sit-stand desk in the master,
+  they exported from the app on 2026-08-17: queen + big sit-stand desk in the master,
   94" sofa on the east glass facing the TV console on the divider, owned dining table
-  under the north windows, bakers rack and rolling cart in the kitchen, Full XL +
-  small desk + pantry in bedroom 2, hamper in the walk-in, shoe bench by the entry
-  door. Balcony empty — nothing is out there yet.
+  under the north windows, rolling cart in the kitchen, bakers rack (as the drop zone)
+  and shoe bench in the foyer, hamper in the laundry closet south of the W/D stack,
+  and queen + small desk + pantry + cart + folding shelf in bedroom 2. Balcony empty —
+  nothing is out there yet. The **two carts and two queens are deliberate**; the owned
+  Full XL is currently unplaced, and so is `my-shelf`.
 - `MODEL_UNIT` — the building's model unit, restored by the "Model unit" button. Traced
   from the Matterport scan, so it uses generic catalog pieces, not the `my-*` ones. Its
   balcony is empty because the real model unit's is.
@@ -194,6 +207,26 @@ the NE column (ends z 4.8) and the countertop column (starts z 13.85). The model
 sofa plus side table use ~8.7 ft of it and the owner's 94" sofa uses 7.83 — either way,
 nudging along z trips the collision pad. The owner's sofa is also 3.5 ft deep against
 glazing at x 27.86, which leaves 0.11 ft behind it.
+
+Bedroom 2 is the other tight spot now that it carries a queen plus desk, chair, pantry,
+cart and folding shelf: several of those clear each other and the east/south walls by
+0.1–0.5 ft, so treat any position there as load-bearing rather than approximate.
+
+Circulation, measured as the widest free disc that can traverse the living → hall route
+(so it accounts for corners, not just wall-to-wall spans):
+
+- The route's narrowest point is **2'11" at z ≈ 13.5**, where the peninsula's NW corner,
+  the TV console and the air purifier close in on each other. Everything downstream is
+  wider, so that spot is the one to protect.
+- The west walkway past the fridge (z 18–21.5) is the widest stretch at **4'1"–4'6"** —
+  which is why the kitchen bin lives there and costs nothing.
+- The kitchen→hall throat (z 22–22.75) is **3'11"**; the hall spine is 4'3"–4'7".
+- The **galley aisle** (peninsula ↔ range wall) is a uniform **3'2"** for its whole
+  length. It is *not* on the living→hall route — you can detour through the cross aisle —
+  so route metrics won't flag anything parked in it, but it drops the working aisle to
+  2'4". Check that separately.
+- The bakers rack in its old kitchen spot cost 0.48 ft off the route pinch (2'11" → 2'5"),
+  which is the most of anything tried there.
 
 After editing either, reload with `localStorage.removeItem('aqua3d.layout.v6')` (a saved
 layout wins over the default) and check that no red collision pads appear. There is a
