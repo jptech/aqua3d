@@ -166,7 +166,9 @@ const COARSE = matchMedia('(pointer: coarse)').matches;
 const SMALL = () => window.innerWidth > 0 && window.innerWidth < 720;   // 0 = pane not sized yet
 
 // ---------- interactions ----------
-const STORAGE = 'aqua3d.layout.v5';
+// v6: the first-visit default switched from the model unit to the owner's real
+// pieces, so an old v5 save would keep hiding it behind a stale arrangement.
+const STORAGE = 'aqua3d.layout.v6';
 let saveTimer = null;
 const interactions = new Interactions({
   scene, camera, dom: renderer.domElement, controls,
@@ -573,12 +575,14 @@ $('#s-del').onclick = () => interactions.removeSelected();
 // ---------- layout presets ----------
 const HPI = Math.PI / 2;
 
-// The default. Traced from the Matterport scan of the building's two-bedroom
-// model unit, room by room: navy sofa along the east glass facing a credenza and
-// wall-hung TV on the divider, a cream wingback angled in by the north windows,
-// a round pedestal table centred on the sliding door, king in the master with
-// its headboard on the west wall, queen in bedroom 2 against the north wall.
-// The model unit's balcony is unstaged, so this leaves it empty too.
+// The reference layout, not the default. Traced from the Matterport scan of the
+// building's two-bedroom model unit, room by room: navy sofa along the east glass
+// facing a credenza and wall-hung TV on the divider, a cream wingback angled in
+// by the north windows, a round pedestal table centred on the sliding door, king
+// in the master with its headboard on the west wall, queen in bedroom 2 against
+// the north wall. The model unit's balcony is unstaged, so this leaves it empty
+// too. Everything here is a generic catalog piece — the model unit isn't
+// furnished with the owner's things.
 const MODEL_UNIT = [
   // Living — the seating group runs along the east glazing, which is only 9 ft
   // clear between the NE column (ends z 4.8) and the countertop column
@@ -609,55 +613,60 @@ const MODEL_UNIT = [
   { id: 'nightstand', x: 23.8, z: 31.7, r: 0 },
 ];
 
-// The owner's real pieces at measured sizes (the `my-*` catalog entries), kept as
-// a second preset so the layout that was actually planned here isn't lost.
-// Keeps the living area open and a clear path to the balcony door (x 21.6-24.6).
+// THE DEFAULT — the owner's real pieces at measured sizes (the `my-*` catalog
+// entries), following the arrangement exported from the app on 2026-08-16.
+// Cleaned up from that export in four places: the 84" generic sofa became the
+// measured 94" `my-sofa` (and slid west so it clears the east glazing), the
+// second generic queen became the Full XL that's actually owned, the folding
+// 4-tier was turned to face the room instead of the west wall, and each
+// sit-stand desk got a chair. Balcony left empty — nothing is out there yet.
+//
+// The tight spots, so a nudge doesn't quietly trip the collision pad:
+//  - sofa: only 9.05 ft clear between the NE column (ends z 4.8) and the
+//    countertop column (starts z 13.85), and the sofa is 7.83 of it.
+//  - sofa depth: 3.5 ft off the east glazing at x 27.86 leaves 0.11 ft.
+//  - fold5 / desk-s in bedroom 2 both squeeze past the corner column
+//    (x 25.7-27.86, z 30.7-32.1).
 const MY_FURNITURE = [
-  // living (NE corner x>24.7, z<4.8 is a structural column — keep clear)
-  { id: 'my-tv', x: 13.35, z: 8.8, r: HPI },
-  { id: 'my-shelf', x: 13.1, z: 4.9, r: HPI },
-  { id: 'sofa', x: 20.9, z: 8.8, r: -HPI },
-  { id: 'rug810', x: 17.3, z: 8.8, r: HPI },
-  { id: 'coffee', x: 17.2, z: 8.8, r: HPI },
-  { id: 'lamp', x: 13.4, z: 12.8, r: 0 },
-  { id: 'plant', x: 26.9, z: 6.0, r: 0 },
-  // dining — owned 47×28 table by the north windows, two chairs per long side
-  { id: 'my-dining', x: 21.6, z: 2.9, r: 0 },
-  { id: 'chair', x: 20.6, z: 1.5, r: 0 },
-  { id: 'chair', x: 22.6, z: 1.5, r: 0 },
-  { id: 'chair', x: 20.6, z: 4.3, r: Math.PI },
-  { id: 'chair', x: 22.6, z: 4.3, r: Math.PI },
+  // ---- living: seating on the east glass, TV on the divider opposite ----
+  { id: 'my-sofa', x: 26.0, z: 9.35, r: -HPI },
+  { id: 'rug58', x: 22.0, z: 9.35, r: HPI },
+  { id: 'my-tv', x: 13.38, z: 9.8, r: HPI },
+  { id: 'my-purifier', x: 12.85, z: 13.1, r: 0 },
+  { id: 'lamp', x: 13.07, z: 4.03, r: 0 },
+  // ---- dining: owned 47×28 table under the north windows, three chairs ----
+  { id: 'my-dining', x: 20.52, z: 2.33, r: Math.PI },
+  { id: 'chair', x: 18.03, z: 2.16, r: HPI },
+  { id: 'chair', x: 23.1, z: 2.23, r: -HPI },
+  { id: 'chair', x: 20.52, z: 3.65, r: Math.PI },
   { id: 'stool', x: 19.8, z: 13.35, r: 0 },
   { id: 'stool', x: 22.2, z: 13.35, r: 0 },
-  // master — owned queen
-  { id: 'my-queen', x: 4.2, z: 8.5, r: HPI },
-  { id: 'nightstand', x: 1.5, z: 4.3, r: HPI },
-  { id: 'nightstand', x: 1.5, z: 12.7, r: HPI },
-  { id: 'bench', x: 8.65, z: 8.5, r: HPI },
-  { id: 'dresser', x: 6.9, z: 15.4, r: Math.PI },
-  { id: 'plant', x: 10.5, z: 1.8, r: 0 },
-  // bedroom 2 — owned Full XL + sit-stand desk
-  { id: 'my-fullxl', x: 20.3, z: 34.4, r: 0 },
-  { id: 'nightstand', x: 16.85, z: 31.8, r: 0 },
-  { id: 'nightstand', x: 23.8, z: 31.8, r: 0 },
-  { id: 'rug58', x: 20.3, z: 35.6, r: 0 },
-  { id: 'my-desk-l', x: 26.5, z: 37.0, r: HPI },
-  { id: 'taskchair', x: 24.7, z: 37.0, r: HPI },
-  // balcony — bistro set on the east curve, lounger further south, sofa + planter north
-  { id: 'bistro', x: 30.7, z: 6.1, r: 0 },
-  { id: 'outchair', x: 30.5, z: 3.0, r: 0.2 },
-  { id: 'outchair', x: 30.5, z: 9.2, r: 2.9 },
-  { id: 'lounger', x: 30.2, z: 13.5, r: 0 },
-  { id: 'outsofa', x: 15.2, z: -1.9, r: Math.PI },
-  { id: 'planter', x: 21.5, z: -1.2, r: 0 },
+  // ---- kitchen: bakers rack on the divider, cart by the east window ----
+  { id: 'my-bakers', x: 12.96, z: 18.22, r: HPI },
+  { id: 'my-cart', x: 27.04, z: 17.61, r: HPI },
+  // ---- master: queen on the west wall, big desk under the north windows ----
+  { id: 'my-queen', x: 4.55, z: 9.83, r: HPI },
+  { id: 'my-desk-l', x: 8.84, z: 1.98, r: 0 },
+  { id: 'taskchair', x: 8.84, z: 4.1, r: Math.PI },
+  { id: 'my-fold4', x: 1.21, z: 2.14, r: HPI },
+  // ---- walk-in: hamper in the corner clear of the inward-swinging door ----
+  { id: 'my-hamper', x: 5.5, z: 22.2, r: 0 },
+  // ---- foyer: shoe bench on the south wall, east of the entry door swing ----
+  { id: 'my-shoebench', x: 11.9, z: 39.18, r: Math.PI },
+  // ---- bedroom 2: Full XL + the small sit-stand desk on the east glass ----
+  { id: 'my-fullxl', x: 17.41, z: 33.28, r: HPI },
+  { id: 'my-fold5', x: 24.47, z: 31.49, r: 0 },
+  { id: 'my-desk-s', x: 26.8, z: 34.4, r: -HPI },
+  { id: 'taskchair', x: 25.0, z: 34.4, r: HPI },
+  { id: 'my-pantry', x: 25.97, z: 38.79, r: Math.PI },
 ];
 
-// load saved layout, or the model unit on a first visit
+// load saved layout, or the owner's furniture on a first visit
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null');
-  interactions.load(saved && saved.length ? saved : MODEL_UNIT);
+  interactions.load(saved && saved.length ? saved : MY_FURNITURE);
   interactions.deselect();
-} catch { interactions.load(MODEL_UNIT); interactions.deselect(); }
+} catch { interactions.load(MY_FURNITURE); interactions.deselect(); }
 
 // restore UI prefs — touch devices default to view-only: locked, sidebar collapsed.
 // Auto-chosen defaults are not persisted (the pane can even load at 0×0 width);
@@ -778,4 +787,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // debugging handle: renderer.info.render.calls / .triangles, quality tier, etc.
-window.AQUA = { renderer, scene, camera, controls, world, quality: Q, perf, merge: mergeStats };
+window.AQUA = {
+  renderer, scene, camera, controls, world, quality: Q, perf, merge: mergeStats,
+  interactions, presets: { MODEL_UNIT, MY_FURNITURE },
+};

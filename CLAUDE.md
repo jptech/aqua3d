@@ -49,8 +49,10 @@ walls, not the model unit's gray-blue.
 - **Walk mode needs floor continuity**: every door/opening in a registered wall needs a
   matching `th-*` threshold rect in `ROOMS`, or you can't walk through it.
 - **Floor rects must not overlap** (z-fighting) and walls sit on y=0 over them.
-- Saved layouts live in localStorage `aqua3d.layout.v5` (see `STORAGE` in main.js).
-  Bump the version only if saved furniture would now sit inside new walls.
+- Saved layouts live in localStorage `aqua3d.layout.v6` (see `STORAGE` in main.js).
+  Bump the version only if saved furniture would now sit inside new walls, or if a new
+  default has to get past an old save (a save always wins over the default). v6 was the
+  latter: the first-visit default moved from `MODEL_UNIT` to `MY_FURNITURE`.
 - Cabinet-door "seams" are hairline boxes (~0.05 ft wide). A fat seam renders as a big
   black panel — size them thin.
 - **The shell and every furniture piece are merged after they're built** (`mergeStatic`),
@@ -63,8 +65,9 @@ walls, not the model unit's gray-blue.
 - Nothing expensive should be hardcoded — read it from `Q` in `quality.js` so the low
   tier stays cheap. Test with `?q=low` and `?q=high`; the ◐ button pins a tier and
   reloads (tiers change how geometry/textures are built, so a live switch isn't possible).
-- `window.AQUA` exposes the renderer, scene, camera and merge stats for console poking
-  (`AQUA.renderer.info.render.calls`).
+- `window.AQUA` exposes the renderer, scene, camera, merge stats, the `Interactions`
+  instance and both layout presets for console poking
+  (`AQUA.renderer.info.render.calls`, `AQUA.interactions.items`).
 
 ## Established floorplan facts (owner-verified; don't regress)
 
@@ -131,7 +134,13 @@ The "My Furniture" catalog category (`my-*` ids in furniture.js) holds pieces th
 actually owns, at real measured dimensions — don't resize them, and prefer them over
 generic equivalents when arranging this unit: 64"×16" TV console with 65" TV, 47"×28"
 wooden dining table, 60"×29" and 48"×23" sit-stand desks, 23"×12" five-shelf bookcase
-(62" tall), Full XL bed, Queen bed.
+(62" tall), Full XL bed, Queen bed, and the sofa below.
+
+`my-sofa` is the owner's own sofa, measured: **94" wide × 42" deep, two large seat
+cushions, two wide arms at ~14" each** — so the cushions come out ~33" apart. It is
+built by the shared `seat()` builder, which now takes `armW` / `armTop` / `cushions`;
+pin all three rather than letting the width-derived default make it a three-seater.
+Don't reach for the generic 84" `sofa` when arranging this unit.
 
 Storage pieces, sized from the manufacturers' listed dimensions rather than measured
 in the unit — if one reads wrong on site, the listing spec is what to re-check:
@@ -143,6 +152,14 @@ in the unit — if one reads wrong on site, the listing spec is what to re-check
 | `my-fold5` | 4NM no-assembly folding bookshelf, 5-tier (B0CQCB1MTT) | 23 × 11.6 × 65.7 |
 | `my-fold4` | BHG folding bookshelf, "Fire" 4-tier (B0D86LMRBH) | 23.6 × 11.6 × 49.8 |
 | `my-cart` | SimpleHouseware 3-tier rolling utility cart (B07V49ZP66) | 17 × 12.5 × 31.5 |
+| `my-shoebench` | SONGMICS shoe bench w/ cushion, ULBS576B33, dark gray on ink black | 23.6 × 11.8 × 19.7 |
+| `my-hamper` | AINUOQUI tall rope laundry hamper, rice brown & white | 17 × 13.8 × 22 |
+| `my-purifier` | Blueair Blue Pure 311i+ Max air purifier | 10.6 × 10.6 × 20.5 |
+
+Only the 23.6" width is stated in the SONGMICS listing title; its depth and height,
+and all three of the hamper's and the purifier's, come from the listing spec blocks.
+The purifier's fabric sleeve is the intake, so it runs nearly the full height and the
+white cap is only the top ~2" — don't turn it into a two-tone box.
 
 Owner-verified on the bakers rack (`my-bakers`), against listing photos: the **top two
 shelves are the shallow hutch shelves**, set back against the wire panel at roughly half
@@ -161,13 +178,24 @@ rather than from BHG's own listing, which doesn't publish it.
 
 Two arrays in main.js, both reachable from the sidebar and both kept collision-free:
 
-- `MODEL_UNIT` — **the default**, restored by the "Model unit" button and loaded on a
-  first visit. Traced from the Matterport scan of the building's model unit, so it uses
-  generic catalog pieces, not the `my-*` ones. Its balcony is empty because the real
-  model unit's is. The east-wall seating group is tight: there are only ~9 ft clear
-  between the NE column (ends z 4.8) and the countertop column (starts z 13.85), and
-  the sofa plus side table use ~8.7 of it — nudging them apart trips the collision pad.
-- `MY_FURNITURE` — the owner's real pieces, restored by the "My furniture" button.
+- `MY_FURNITURE` — **the default**, restored by the "My furniture" button and loaded on
+  a first visit. The owner's real pieces at measured sizes, following the arrangement
+  they exported from the app on 2026-08-16: queen + big sit-stand desk in the master,
+  94" sofa on the east glass facing the TV console on the divider, owned dining table
+  under the north windows, bakers rack and rolling cart in the kitchen, Full XL +
+  small desk + pantry in bedroom 2, hamper in the walk-in, shoe bench by the entry
+  door. Balcony empty — nothing is out there yet.
+- `MODEL_UNIT` — the building's model unit, restored by the "Model unit" button. Traced
+  from the Matterport scan, so it uses generic catalog pieces, not the `my-*` ones. Its
+  balcony is empty because the real model unit's is.
 
-After editing either, reload with `localStorage.removeItem('aqua3d.layout.v5')` (a saved
-layout wins over the default) and check that no red collision pads appear.
+The east glazing bay is the tight spot in **both** presets: only ~9 ft clear between
+the NE column (ends z 4.8) and the countertop column (starts z 13.85). The model unit's
+sofa plus side table use ~8.7 ft of it and the owner's 94" sofa uses 7.83 — either way,
+nudging along z trips the collision pad. The owner's sofa is also 3.5 ft deep against
+glazing at x 27.86, which leaves 0.11 ft behind it.
+
+After editing either, reload with `localStorage.removeItem('aqua3d.layout.v6')` (a saved
+layout wins over the default) and check that no red collision pads appear. There is a
+headless check for this: `window.AQUA.interactions.items` exposes every placed piece and
+`it.userData.pad.visible` is its collision flag.
