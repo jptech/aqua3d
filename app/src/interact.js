@@ -35,6 +35,44 @@ function aabbOf(pts) {
   return { x0, z0, x1, z1 };
 }
 
+// ---- snap to wall ----
+// A piece dragged to within SNAP_REACH of a wall gets pulled flush against it.
+// Nearly everything in this unit lives with its back on a wall, and eyeballing
+// that last inch is the single most tedious part of laying a room out.
+const SNAP_REACH = 0.75;   // how close a face has to get before it's pulled in
+// Baseboards project BASE_T (0.045 ft) past the wall face and aren't registered
+// as obstacles of their own, so "flush" has to stop just shy of the wall rect or
+// case goods clip through the trim.
+const SNAP_GAP = 0.05;
+
+// Nearest obstacle face in each of the four axis directions, as a signed offset
+// that would close the gap. Only rects that actually overlap the item's span on
+// the perpendicular axis count — a wall off to the side isn't something to snap
+// to. Returns the smallest such move, or null if nothing is in reach.
+function wallSnapOffset(bb, obstacles) {
+  let best = null;
+  for (const r of obstacles) {
+    // ±x faces: the rect has to share some z with the item
+    if (r.z0 < bb.z1 && bb.z0 < r.z1) {
+      const gapW = bb.x0 - r.x1;      // wall to the west
+      const gapE = r.x0 - bb.x1;      // wall to the east
+      if (gapW >= 0 && gapW <= SNAP_REACH) best = pick(best, gapW, -(gapW - SNAP_GAP), 0);
+      if (gapE >= 0 && gapE <= SNAP_REACH) best = pick(best, gapE, gapE - SNAP_GAP, 0);
+    }
+    // ±z faces: the rect has to share some x with the item
+    if (r.x0 < bb.x1 && bb.x0 < r.x1) {
+      const gapN = bb.z0 - r.z1;
+      const gapS = r.z0 - bb.z1;
+      if (gapN >= 0 && gapN <= SNAP_REACH) best = pick(best, gapN, 0, -(gapN - SNAP_GAP));
+      if (gapS >= 0 && gapS <= SNAP_REACH) best = pick(best, gapS, 0, gapS - SNAP_GAP);
+    }
+  }
+  return best;
+}
+function pick(best, gap, dx, dz) {
+  return best && best.gap <= gap ? best : { gap, dx, dz };
+}
+
 export class Interactions {
   constructor({ scene, camera, dom, controls, world, onChange }) {
     this.scene = scene;
@@ -47,6 +85,7 @@ export class Interactions {
     this.selected = null;
     this.dragging = false;
     this.enabled = true;   // false while measure/walk tools own the pointer
+    this.snapWalls = true; // pull a dragged piece's nearest face onto a nearby wall
     this.planMode = false; // 2D plan mode: items shown as flat labeled footprints
     this._proxySeq = 0;    // staggers proxy heights so overlapping footprints don't z-fight
     this.ray = new THREE.Raycaster();
@@ -273,7 +312,18 @@ export class Interactions {
     if (!this.ray.ray.intersectPlane(this.floorPlane, hit)) return;
     let nx = hit.x + this.dragOffset.x;
     let nz = hit.z + this.dragOffset.z;
+    // Shift means "put it on the ½ ft grid", so it wins over the wall pull —
+    // otherwise the two snaps fight and neither lands where it was asked to.
     if (e.shiftKey) { nx = Math.round(nx * 2) / 2; nz = Math.round(nz * 2) / 2; }
+    else if (this.snapWalls) {
+      const { w, d } = this.selected.userData.def;
+      const c = Math.cos(this.selected.rotation.y), s = Math.sin(this.selected.rotation.y);
+      const hx = w / 2, hz = d / 2;
+      const bb = aabbOf([[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]]
+        .map(([x, z]) => [nx + x * c + z * s, nz - x * s + z * c]));
+      const snap = wallSnapOffset(bb, this.world.obstacles);
+      if (snap) { nx += snap.dx; nz += snap.dz; }
+    }
     if (pointOnFloor(nx, nz, this.world.balconyPoly)) {
       this.selected.position.x = nx;
       this.selected.position.z = nz;

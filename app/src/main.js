@@ -174,12 +174,56 @@ const interactions = new Interactions({
   scene, camera, dom: renderer.domElement, controls,
   world: { obstacles: world.obstacles, balconyPoly: world.balconyPoly },
   onChange: () => {
+    noteChange();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       localStorage.setItem(STORAGE, JSON.stringify(interactions.serialize()));
     }, 400);
   },
 });
+
+// ---------- undo ----------
+// onChange fires *after* a mutation, so the stack holds the state as it was
+// before it. One user action can fire onChange several times in the same tick
+// (load() clears and then refills), so the entry is coalesced into a microtask
+// and dropped entirely if the serialized layout came out unchanged.
+const UNDO_MAX = 60;
+const undoStack = [];
+let lastLayout = null;      // serialized state as of the last settled change
+let undoPending = false;    // an entry is already queued for this tick
+let undoing = false;        // suppress bookkeeping while an undo replays
+
+function noteChange() {
+  if (undoing || undoPending) return;
+  undoPending = true;
+  const before = lastLayout;
+  queueMicrotask(() => {
+    const now = JSON.stringify(interactions.serialize());
+    if (before !== null && before !== now) {
+      undoStack.push(before);
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+    }
+    lastLayout = now;
+    undoPending = false;
+    syncUndoBtn();
+  });
+}
+
+function undo() {
+  const prev = undoStack.pop();
+  if (prev === undefined) return;
+  undoing = true;
+  interactions.load(JSON.parse(prev));   // still triggers the debounced save
+  interactions.deselect();
+  undoing = false;
+  lastLayout = prev;
+  syncUndoBtn();
+}
+
+function syncUndoBtn() {
+  const b = document.getElementById('b-undo');
+  if (b) b.disabled = undoStack.length === 0;
+}
 
 // ---------- camera views ----------
 const VIEWS = {
@@ -476,6 +520,15 @@ $('#t-labels').onclick = (e) => {
   e.target.classList.toggle('on', on);
 };
 $('#t-grid').onclick = (e) => { grid.visible = !grid.visible; e.target.classList.toggle('on', grid.visible); };
+// Wall snap is on by default but persisted, since it's the one toggle that
+// changes where a drag actually lands — someone placing a piece deliberately
+// off the wall wants it to stay off across reloads.
+function setSnap(on, persist = true) {
+  interactions.snapWalls = on;
+  document.getElementById('t-snap').classList.toggle('on', on);
+  if (persist) saveUI({ snap: on });
+}
+$('#t-snap').onclick = () => setSnap(!interactions.snapWalls);
 
 // ---------- render quality ----------
 // Tier decides how geometry and textures are built, so switching reloads. The
@@ -522,6 +575,18 @@ function loadPreset(name, layout) {
 $('#b-sample').onclick = () => loadPreset('model unit', MODEL_UNIT);
 $('#b-mine').onclick = () => loadPreset('my furniture', MY_FURNITURE);
 $('#b-clear').onclick = () => { if (confirm('Remove all furniture?')) interactions.clear(); };
+$('#b-undo').onclick = () => undo();
+syncUndoBtn();
+
+// Ctrl/Cmd+Z lives on the window rather than in Interactions' own key handler,
+// which only runs when something is selected — undo has to work after a delete.
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+    e.preventDefault();
+    undo();
+  }
+});
 
 // ---------- export / import ----------
 $('#b-export').onclick = () => {
@@ -620,11 +685,13 @@ const MODEL_UNIT = [
 // closet behind the bifold, and a second pantry / cart / desk cluster fills
 // bedroom 2. Balcony left empty — nothing is out there yet.
 //
-// Three positions were nudged off the export, all for clearance, none for taste:
+// The export also had a third pantry cabinet loose in bath 2; the owner has
+// confirmed that one was a stray, so it isn't here. Two carts and two queens
+// are deliberate.
+//
+// Two positions were nudged off the export, both for clearance, neither for taste:
 //  - hamper z 38.45 -> 37.9, so it sits inside the laundry bifold's opening
 //    (z 33.6-38.6) instead of half behind the south jamb.
-//  - bath-2 pantry z 28.56 -> 29.6, onto the south wall it already faces; it
-//    was floating 1.1 ft off it.
 //  - bedroom-2 queen z 33.22 -> 33.25; its headboard cleared the north wall by
 //    1/4", which is inside the margin a stray drag would eat.
 //
@@ -656,8 +723,6 @@ const MY_FURNITURE = [
   { id: 'my-desk-l', x: 8.84, z: 1.98, r: 0 },
   { id: 'taskchair', x: 8.84, z: 4.1, r: Math.PI },
   { id: 'my-fold4', x: 1.21, z: 2.14, r: HPI },
-  // ---- bath 2: pantry cabinet used as the linen cupboard, on the south wall ----
-  { id: 'my-pantry', x: 20.31, z: 29.6, r: Math.PI },
   // ---- foyer: bakers rack on the bath wall, shoe bench beside the entry door,
   //      hamper inside the laundry closet south of the W/D stack ----
   { id: 'my-bakers', x: 8.39, z: 33.45, r: 0 },
@@ -684,6 +749,7 @@ try {
 // only explicit toggles save.
 setLock(uiState.locked ?? COARSE, false);
 setSidebar(uiState.sidebar ?? !(COARSE || SMALL()), false);
+setSnap(uiState.snap ?? true, false);
 
 // ---------- wall auto-fade ----------
 const SIDE_NORMALS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };

@@ -34,7 +34,7 @@ walls, not the model unit's gray-blue.
 | `src/plan.js` | **The floorplan model.** All coordinates in feet (1 unit = 1 ft), origin at the exterior NW corner, +x east, +z south. Wall lines (`X`, `Z`, `SUITE`), room/floor rects (`ROOMS`, incl. `th-*` door thresholds), balcony curve, `WALL_RECTS` obstacle registry (filled at build time). |
 | `src/apartment.js` | Builds walls/glazing/doors/fixtures from plan.js. `wall()` and `glazing()` auto-register obstacle rects; fixtures call `reg()` manually. |
 | `src/furniture.js` | Procedural catalog. Real-world footprints (`w`×`d` ft); flags: `flat` (rugs), `tuck`/`surface` (chairs may overlap tables). |
-| `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles. Has an `enabled` flag other tools toggle. |
+| `src/interact.js` | Selection, floor dragging, rotation, 2D SAT collision (red pad), dimension rays to nearest obstacles, snap-to-wall on drag. Has an `enabled` flag other tools toggle and a `snapWalls` flag the 🧲 button owns. |
 | `src/measure.js` | Two-click measuring tape. |
 | `src/main.js` | Scene/lights/skyline, PMREM environment map, camera view presets, wall auto-fade, walk mode (WASD + pointer lock), UI wiring, sample layout, localStorage persistence, adaptive resolution. |
 | `src/textures.js` | Canvas surfaces (carpet, tile, granite, maple/walnut, plaster, concrete, glass tile, linen) each with a real-world tile size + Sobel-derived normal map; equirect sky; contact-shadow blob. |
@@ -44,8 +44,17 @@ walls, not the model unit's gray-blue.
 ## Invariants — keep these when editing geometry
 
 - **Everything routes through `WALL_RECTS`**: furniture collision tinting, dimension
-  rays, and walk-mode collision all read the same registry. New solid geometry must be
-  registered (walls do it automatically); never register door openings.
+  rays, walk-mode collision and snap-to-wall all read the same registry. New solid
+  geometry must be registered (walls do it automatically); never register door openings.
+- Snap-to-wall pulls a dragged piece's nearest face to within `SNAP_GAP` (0.05 ft) of a
+  wall rect, not flush to it — baseboards project 0.045 ft past the wall face and are
+  *not* registered separately, so a truly flush piece clips the trim. Hold Shift to get
+  the ½ ft grid instead; the two snaps are deliberately exclusive.
+- Undo (main.js) snapshots via `serialize()` on `onChange`, which fires *after* a
+  mutation, so the stack holds pre-change states. One user action can fire `onChange`
+  several times in a tick (`load()` clears then refills), so entries are coalesced in a
+  microtask — anything new that mutates the layout gets undo for free, but only if it
+  routes through `onChange`.
 - **Walk mode needs floor continuity**: every door/opening in a registered wall needs a
   matching `th-*` threshold rect in `ROOMS`, or you can't walk through it.
 - **Floor rects must not overlap** (z-fighting) and walls sit on y=0 over them.
@@ -183,9 +192,10 @@ Two arrays in main.js, both reachable from the sidebar and both kept collision-f
   they exported from the app on 2026-08-17: queen + big sit-stand desk in the master,
   94" sofa on the east glass facing the TV console on the divider, owned dining table
   under the north windows, rolling cart in the kitchen, bakers rack (as the drop zone)
-  and shoe bench in the foyer, hamper in the laundry closet south of the W/D stack, a
-  pantry cabinet doing linen duty in bath 2, and queen + small desk + pantry + cart +
-  folding shelf in bedroom 2. Balcony empty — nothing is out there yet.
+  and shoe bench in the foyer, hamper in the laundry closet south of the W/D stack,
+  and queen + small desk + pantry + cart + folding shelf in bedroom 2. Balcony empty —
+  nothing is out there yet. The **two carts and two queens are deliberate**; the owned
+  Full XL is currently unplaced, and so is `my-shelf`.
 - `MODEL_UNIT` — the building's model unit, restored by the "Model unit" button. Traced
   from the Matterport scan, so it uses generic catalog pieces, not the `my-*` ones. Its
   balcony is empty because the real model unit's is.
